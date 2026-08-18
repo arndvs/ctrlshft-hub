@@ -1,0 +1,24 @@
+# Force LF line endings for all text files — prevents cross-platform CRLF
+# drift that breaks prettier/tsc/lint and binary-diff churn.
+* text=auto eol=lf
+
+# Shell scripts and files executed directly on Linux runners.
+*.sh text eol=lf
+
+# YAML workflow/action files.
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Lockfiles keep LF.
+*.lock text eol=lf
+pnpm-lock.yaml text eol=lf
+
+# Never normalize binaries or lockfile blobs.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

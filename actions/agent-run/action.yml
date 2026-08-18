@@ -1,0 +1,137 @@
+name: Sandcastle agent run
+description: >
+  Run a single Sandcastle agent workflow against the consuming repository.
+  Checks out the hub engine at the pinned ref, installs deps, runs the engine
+  against the consumer workspace (cwd), and summarizes the run. This is the
+  SINGLE entry point consumers use — replacing the per-repo vendored
+  setup/preflight/run/summary chain.
+
+inputs:
+  workflow:
+    description: Name of the engine workflow to run (e.g. architecture-review, repo-hygiene).
+    required: true
+  ref:
+    description: Hub ref to run from (branch, tag, or SHA). Default main.
+    required: false
+    default: main
+  token:
+    description: Token used for GitHub API + engine label operations.
+    required: true
+  extra-args:
+    description: Extra CLI args passed verbatim to the engine after the workflow name.
+    required: false
+    default: ""
+  node-version:
+    description: Node.js version used by the engine.
+    required: false
+    default: "22"
+
+outputs:
+  should-run:
+    description: "true/false — whether the engine actually ran (false if proxy preflight skipped)."
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout hub engine
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        repository: arndvs/sandcastle-hub
+        ref: ${{ inputs.ref }}
+        path: sandcastle-hub
+        fetch-depth: 1
+
+    # Env needed by the engine (output files + failure reasons) and by
+    # proxy_preflight.sh (model access). Composite actions CANNOT read the
+    # secrets context — the consumer stub supplies LITELLM/ANTHROPIC via
+    # job-level env:, and the token via this input.
+    - name: Proxy preflight
+      id: proxy-preflight
+      shell: bash
+      run: bash "$GITHUB_WORKSPACE/sandcastle-hub/engine/scripts/proxy_preflight.sh"
+
+    - name: Check workflow enabled (disabledWorkflows)
+      id: workflow-enabled
+      shell: bash
+      run: |
+        set -euo pipefail
+        out="$(bash "$GITHUB_WORKSPACE/sandcastle-hub/engine/scripts/check-workflow-enabled.sh" "${{ inputs.workflow }}")"
+        if [[ "$out" == "enabled=true" ]]; then
+          echo "workflow-enabled=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "workflow-enabled=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Set up Node.js
+      if: steps.workflow-enabled.outputs.workflow-enabled == 'true'
+      uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install engine dependencies
+      if: steps.workflow-enabled.outputs.workflow-enabled == 'true'
+      shell: bash
+      run: |
+        corepack enable
+        cd "$GITHUB_WORKSPACE/sandcastle-hub/engine"
+        pnpm --ignore-workspace install --frozen-lockfile
+
+    - name: Run engine
+      id: engine
+      if: >
+        steps.workflow-enabled.outputs.workflow-enabled == 'true' &&
+        steps.proxy-preflight.outputs.should_run == 'true'
+      shell: bash
+      env:
+        OUTPUT_DIR: ${{ runner.temp }}
+        GITHUB_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        cd "$GITHUB_WORKSPACE/sandcastle-hub/engine"
+        max_attempts=2
+        for attempt in $(seq 1 "$max_attempts"); do
+          echo "Running ${{ inputs.workflow }} attempt $attempt/$max_attempts (ref: ${{ inputs.ref }})"
+          if pnpm --ignore-workspace exec tsx "$GITHUB_WORKSPACE/sandcastle-hub/run.ts" \
+              "${{ inputs.workflow }}" \
+              --repo "$GITHUB_WORKSPACE" \
+              ${{ inputs.extra-args }}; then
+            exit 0
+          fi
+          if [ "$attempt" -lt "$max_attempts" ]; then
+            echo "::warning::${{ inputs.workflow }} attempt $attempt failed; retrying once in 30 seconds."
+            sleep 30
+          fi
+        done
+        echo "::error::${{ inputs.workflow }} failed after $max_attempts attempts."
+        exit 1
+
+    - name: Summarise run
+      if: always()
+      shell: bash
+      env:
+        OUTPUT_DIR: ${{ runner.temp }}
+      run: |
+        set -euo pipefail
+        # Engine writes <workflow>_output.json (underscored) to OUTPUT_DIR.
+        name=$(echo "${{ inputs.workflow }}" | tr '-' '_')
+        output_file="${OUTPUT_DIR}/${name}_output.json"
+        if [ ! -f "$output_file" ]; then
+          echo "No output file produced for ${{ inputs.workflow }} — agent likely crashed before emitting a result."
+          exit 0
+        fi
+        status=$(jq -r '.status // empty' "$output_file")
+        echo "## ${{ inputs.workflow }}" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$status" = "proposed" ]; then
+          title=$(jq -r '.title // "Untitled"' "$output_file")
+          summary=$(jq -r '.oneLineSummary // ""' "$output_file")
+          echo "**Proposed:** $title" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "$summary" >> "$GITHUB_STEP_SUMMARY"
+        elif [ "$status" = "skipped" ]; then
+          reason=$(jq -r '.reason // ""' "$output_file")
+          echo "**Skipped** — $reason" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "Status: $status" >> "$GITHUB_STEP_SUMMARY"
+        fi
