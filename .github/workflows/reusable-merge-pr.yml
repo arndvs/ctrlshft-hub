@@ -1,0 +1,69 @@
+name: Sandcastle reusable - Merge PR
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: PR number to merge.
+        required: true
+        type: string
+      engine-ref:
+        description: Hub ref the engine should run from. Default main.
+        required: false
+        type: string
+        default: main
+      timeout-minutes:
+        description: Timeout for the agent job.
+        required: false
+        type: number
+        default: 15
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    concurrency:
+      group: sandcastle-pr-${{ inputs.pr-number }}
+      cancel-in-progress: false
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Run merge-pr via hub action
+        id: agent
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: merge-pr
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --pr ${{ inputs.pr-number }}
+
+      - name: Close linked issues
+        if: success()
+        env:
+          PR_NUMBER: ${{ inputs.pr-number }}
+        run: |
+          set -euo pipefail
+          # GitHub only auto-closes `Closes #N`/`Fixes #N` issues when a PR merges into
+          # the default branch. Sandcastle PRs merge into the config's baseBranch (often
+          # not default), so parse the body and close explicitly.
+          body=$(gh pr view "$PR_NUMBER" -R ${{ github.repository }} --json body --jq '.body')
+          issue_numbers=$(printf '%s' "$body" | grep -oiP '\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#\K[0-9]+' | sort -u || true)
+          for issue_number in $issue_numbers; do
+            is_pr=$(gh api "repos/${{ github.repository }}/issues/$issue_number" --jq 'has("pull_request")' 2>/dev/null || echo "missing")
+            if [ "$is_pr" = "true" ] || [ "$is_pr" = "missing" ]; then
+              echo "Skipping #$issue_number (PR or not found)."
+              continue
+            fi
+            gh issue close "$issue_number" -R ${{ github.repository }} --comment "Closed via merge of #${PR_NUMBER}." || true
+          done

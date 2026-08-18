@@ -1,0 +1,83 @@
+name: Sandcastle reusable - Update Branch
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: PR number to update.
+        required: true
+        type: string
+      branch:
+        description: PR head branch to update.
+        required: true
+        type: string
+      base-ref:
+        description: Base ref (usually the default branch) to rebase onto.
+        required: true
+        type: string
+      engine-ref:
+        description: Hub ref the engine should run from. Default main.
+        required: false
+        type: string
+        default: main
+      timeout-minutes:
+        description: Timeout for the agent job.
+        required: false
+        type: number
+        default: 60
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-branch:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    concurrency:
+      group: sandcastle-pr-${{ inputs.pr-number }}
+      cancel-in-progress: false
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: Run update-branch via hub action
+        id: agent
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: update-branch
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --pr ${{ inputs.pr-number }} --branch ${{ inputs.branch }} --base-ref ${{ inputs.base-ref }}
+
+      - name: Push updated branch
+        if: success()
+        run: |
+          set -euo pipefail
+          should_push=$(cat "${RUNNER_TEMP}/should_push.txt" 2>/dev/null || echo "false")
+          if [ "$should_push" = "true" ]; then
+            git push origin ${{ inputs.branch }}
+            echo "Branch updated."
+          else
+            echo "No push needed."
+          fi
+
+      - name: Post comment
+        if: always()
+        run: |
+          set -euo pipefail
+          comment_file="${RUNNER_TEMP}/comment.md"
+          if [ -f "$comment_file" ]; then
+            gh pr comment ${{ inputs.pr-number }} -R ${{ github.repository }} --body-file "$comment_file" || true
+          fi

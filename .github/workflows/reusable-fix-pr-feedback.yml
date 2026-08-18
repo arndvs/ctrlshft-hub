@@ -1,0 +1,60 @@
+name: Sandcastle reusable - Fix PR Feedback
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: PR number to fix.
+        required: true
+        type: string
+      engine-ref:
+        description: Hub ref the engine should run from. Default main.
+        required: false
+        type: string
+        default: main
+      timeout-minutes:
+        description: Timeout for the agent job.
+        required: false
+        type: number
+        default: 60
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  fix-pr-feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    concurrency:
+      group: sandcastle-pr-${{ inputs.pr-number }}
+      cancel-in-progress: false
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Run fix-pr-feedback via hub action
+        id: agent
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: fix-pr-feedback
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --pr ${{ inputs.pr-number }}
+
+      - name: Push fixes
+        if: success()
+        run: |
+          set -euo pipefail
+          if git rev-parse --verify HEAD >/dev/null 2>&1 && [ -n "$(git status --porcelain)" ]; then
+            git push origin HEAD
+            echo "Pushed fixes."
+          else
+            echo "No changes to push."
+          fi

@@ -1,0 +1,159 @@
+name: Sandcastle reusable - Keep Tests Tight
+
+on:
+  workflow_call:
+    inputs:
+      engine-ref:
+        description: Hub ref the engine should run from. Default main.
+        required: false
+        type: string
+        default: main
+      timeout-minutes:
+        description: Timeout for the agent job.
+        required: false
+        type: number
+        default: 45
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  keep-tests-tight:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    concurrency:
+      group: agent-keep-tests-tight
+      cancel-in-progress: false
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Compute branch name
+        id: branch
+        run: |
+          set -euo pipefail
+          branch="agent/keep-tests-tight-$(date +%F)"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Set up git identity and branch
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          set -euo pipefail
+          git config user.name "claude-code[bot]"
+          git config user.email "claude-code[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+          else
+            git checkout -b "$BRANCH"
+          fi
+
+      - name: Run keep-tests-tight via hub action
+        id: agent
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: keep-tests-tight
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --branch ${{ steps.branch.outputs.name }}
+
+      - name: Push branch
+        if: success()
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          set -euo pipefail
+          output_file="${RUNNER_TEMP}/keep_tests_tight_output.json"
+          if [ ! -f "$output_file" ]; then
+            echo "No output file produced — nothing to push."
+            exit 0
+          fi
+          status=$(jq -r '.status' "$output_file")
+          if [ "$status" != "changed" ]; then
+            echo "Status is '$status' — nothing to push."
+            exit 0
+          fi
+          git push origin "$BRANCH"
+
+      - name: Open draft PR
+        if: success()
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          set -euo pipefail
+          output_file="${RUNNER_TEMP}/keep_tests_tight_output.json"
+          if [ ! -f "$output_file" ]; then
+            echo "No output file produced — nothing to open."
+            exit 0
+          fi
+          status=$(jq -r '.status' "$output_file")
+          if [ "$status" != "changed" ]; then
+            echo "Status is '$status' — no PR to open."
+            exit 0
+          fi
+
+          existing_pr=$(gh pr list -R ${{ github.repository }} --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing_pr" ]; then
+            echo "PR #${existing_pr} already exists for $BRANCH"
+            gh pr edit "$existing_pr" -R ${{ github.repository }} --add-label "source:keep-tests-tight" >/dev/null 2>&1 || true
+            exit 0
+          fi
+
+          summary=$(jq -r '.summary' "$output_file")
+          diffstat=$(jq -r '.diffStat' "$output_file")
+          PR_TITLE="chore(tests): keep tests tight ($(date +%F))"
+          {
+            echo "$summary"
+            echo ""
+            echo "## Diff stat"
+            echo ""
+            echo '```'
+            echo "$diffstat"
+            echo '```'
+          } > "${RUNNER_TEMP}/pr_body.md"
+
+          gh pr create \
+            -R ${{ github.repository }} \
+            --draft \
+            --base main \
+            --head "$BRANCH" \
+            --title "$PR_TITLE" \
+            --body-file "${RUNNER_TEMP}/pr_body.md" \
+            --label "source:keep-tests-tight"
+
+      - name: Summarise run
+        if: always()
+        run: |
+          output_file="${RUNNER_TEMP}/keep_tests_tight_output.json"
+          if [ ! -f "$output_file" ]; then
+            echo "No output file produced — agent likely crashed before emitting a result."
+            exit 0
+          fi
+          status=$(jq -r '.status' "$output_file")
+          {
+            echo "## Keep tests tight"
+            echo ""
+            if [ "$status" = "changed" ]; then
+              summary=$(jq -r '.summary' "$output_file")
+              echo "$summary"
+              echo ""
+              echo "### Removed"
+              jq -r '.removed[] | "- \(.)"' "$output_file"
+              echo ""
+              echo "### Consolidated"
+              jq -r '.consolidated[] | "- \(.)"' "$output_file"
+              echo ""
+              echo "### Kept"
+              jq -r '.kept[] | "- \(.)"' "$output_file"
+            elif [ "$status" = "no-changes" ]; then
+              reason=$(jq -r '.reason' "$output_file")
+              echo "**No changes — $reason.**"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,185 @@
+name: Sandcastle reusable - Implement PRD
+
+on:
+  workflow_call:
+    inputs:
+      prd-number:
+        description: PRD issue number to implement.
+        required: true
+        type: string
+      prd-title:
+        description: PRD issue title.
+        required: true
+        type: string
+      engine-ref:
+        description: Hub ref the engine should run from. Default main.
+        required: false
+        type: string
+        default: main
+      timeout-minutes:
+        description: Timeout for the agent job.
+        required: false
+        type: number
+        default: 60
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement-prd:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    concurrency:
+      group: sandcastle-issue-${{ inputs.prd-number }}
+      cancel-in-progress: false
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Compute branch name
+        id: branch
+        env:
+          PRD_NUMBER: ${{ inputs.prd-number }}
+          PRD_TITLE: ${{ inputs.prd-title }}
+        run: |
+          set -euo pipefail
+          slug=$(echo "$PRD_TITLE" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' \
+            | cut -c1-50)
+          branch="agent/prd-${PRD_NUMBER}-${slug}"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Detect sub-issues + parent shape
+        id: shape
+        run: |
+          set -euo pipefail
+          sub_issues_json=$(gh api "repos/${GH_REPO}/issues/${PRD_NUMBER}/sub_issues" 2>/dev/null || echo "[]")
+          next_open=$(echo "$sub_issues_json" | jq -r '[.[] | select(.state == "open")] | .[0] // empty')
+          next_open_number=""
+          next_open_title=""
+          if [ -n "$next_open" ]; then
+            next_open_number=$(echo "$next_open" | jq -r '.number')
+            next_open_title=$(echo "$next_open" | jq -r '.title')
+          fi
+          echo "next_open_number=$next_open_number" >> "$GITHUB_OUTPUT"
+          {
+            echo "next_open_title<<EOF"
+            echo "$next_open_title"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sandcastle setup checks + run PRD implement
+        id: agent
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: implement-prd
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: >
+            --prd-number ${{ inputs.prd-number }}
+            --prd-title "${{ inputs.prd-title }}"
+            --sub-issue-number ${{ steps.shape.outputs.next_open_number }}
+            --sub-issue-title "${{ steps.shape.outputs.next_open_title }}"
+            --branch ${{ steps.branch.outputs.name }}
+
+      - name: Push branch
+        if: success()
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: git push origin "$BRANCH"
+
+      - name: Check existing PR
+        if: success()
+        id: pr_lookup
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          set -euo pipefail
+          existing_pr=$(gh pr list -R "$GH_REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          echo "existing_pr=$existing_pr" >> "$GITHUB_OUTPUT"
+
+      - name: Write PR title and description
+        if: success() && steps.pr_lookup.outputs.existing_pr == ''
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: write-prd-pr
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --prd-number ${{ inputs.prd-number }} --prd-title "${{ inputs.prd-title }}"
+
+      - name: Open draft PR if one doesn't exist
+        if: success()
+        id: open_pr
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          EXISTING_PR: ${{ steps.pr_lookup.outputs.existing_pr }}
+        run: |
+          set -euo pipefail
+          if [ -n "$EXISTING_PR" ]; then
+            echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            PR_TITLE=$(cat "${RUNNER_TEMP}/pr_title.txt")
+            PR_TITLE="${PR_TITLE:0:256}"
+            pr_url=$(gh pr create \
+              -R "$GH_REPO" \
+              --draft \
+              --base main \
+              --head "$BRANCH" \
+              --title "$PR_TITLE" \
+              --body-file "${RUNNER_TEMP}/pr_description.txt" | tail -n1)
+            pr_number=$(basename "$pr_url")
+            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Close completed sub-issue
+        if: success()
+        env:
+          SUB_ISSUE_NUMBER: ${{ steps.shape.outputs.next_open_number }}
+        run: |
+          set -euo pipefail
+          if [ -n "$SUB_ISSUE_NUMBER" ]; then
+            commit_sha=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+            gh issue close "$SUB_ISSUE_NUMBER" -R "$GH_REPO" --comment "Implemented in ${commit_sha}. Part of #${{ inputs.prd-number }}."
+          fi
+
+      - name: Re-check remaining open sub-issues
+        if: success()
+        id: remaining
+        env:
+          PRD_NUMBER: ${{ inputs.prd-number }}
+          SUB_ISSUE_NUMBER: ${{ steps.shape.outputs.next_open_number }}
+        run: |
+          set -euo pipefail
+          if remaining=$(gh api "repos/${GH_REPO}/issues/${PRD_NUMBER}/sub_issues" \
+            --jq '[.[] | select(.state == "open" and (.number | tostring) != env.SUB_ISSUE_NUMBER)] | length'); then
+            echo "count=$remaining" >> "$GITHUB_OUTPUT"
+          else
+            status=$?
+            echo "Failed to re-check remaining open sub-issues (status $status)." > "${RUNNER_TEMP}/failure_reason.txt"
+            exit "$status"
+          fi
+
+      - name: Chain — re-label PRD to pick up next sub-issue
+        if: success() && steps.remaining.outputs.count != '0'
+        env:
+          PRD_NUMBER: ${{ inputs.prd-number }}
+        run: |
+          if [ -z "${{ secrets.AGENT_PAT }}" ]; then
+            echo "AGENT_PAT is required to add agent:implement-prd because GITHUB_TOKEN-created labels do not trigger workflows." > "${RUNNER_TEMP}/failure_reason.txt"
+            exit 1
+          fi
+          GH_TOKEN="${{ secrets.AGENT_PAT }}" gh issue edit "$PRD_NUMBER" --add-label "agent:implement-prd" || {
+            status=$?
+            echo "AGENT_PAT failed to add agent:implement-prd (status $status)." > "${RUNNER_TEMP}/failure_reason.txt"
+            exit "$status"
+          }

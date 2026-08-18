@@ -1,0 +1,159 @@
+name: Sandcastle reusable - Implement Issue
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        description: Issue number to implement.
+        required: true
+        type: string
+      issue-title:
+        description: Issue title.
+        required: true
+        type: string
+      engine-ref:
+        description: Hub ref the engine should run from. Default main.
+        required: false
+        type: string
+        default: main
+      timeout-minutes:
+        description: Timeout for the agent job.
+        required: false
+        type: number
+        default: 60
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    concurrency:
+      group: sandcastle-issue-${{ inputs.issue-number }}
+      cancel-in-progress: false
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Transition labels (in-progress)
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-label "agent:implement" -R ${{ github.repository }} || true
+          gh issue edit "$ISSUE_NUMBER" --remove-label "agent:blocked" -R ${{ github.repository }} || true
+          gh issue edit "$ISSUE_NUMBER" --add-label "agent:in-progress" -R ${{ github.repository }}
+
+      - name: Compute branch name
+        id: branch
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          ISSUE_TITLE: ${{ inputs.issue-title }}
+        run: |
+          set -euo pipefail
+          slug=$(echo "$ISSUE_TITLE" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' \
+            | cut -c1-50)
+          branch="agent/issue-${ISSUE_NUMBER}-${slug}"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Set up git identity and branch
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          set -euo pipefail
+          git config user.name "claude-code[bot]"
+          git config user.email "claude-code[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+          else
+            git checkout -b "$BRANCH"
+          fi
+
+      - name: Run implement-issue via hub action
+        id: agent
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: implement-issue
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --issue ${{ inputs.issue-number }} --issue-title "${{ inputs.issue-title }}" --branch ${{ steps.branch.outputs.name }}
+
+      - name: Push branch
+        if: success()
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: git push origin "$BRANCH"
+
+      - name: Write PR title and description
+        if: success()
+        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: write-pr
+          ref: ${{ inputs.engine-ref }}
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          extra-args: --issue ${{ inputs.issue-number }} --issue-title "${{ inputs.issue-title }}" --branch ${{ steps.branch.outputs.name }}
+
+      - name: Open draft PR
+        if: success()
+        id: open_pr
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+        run: |
+          set -euo pipefail
+          existing_pr=$(gh pr list -R ${{ github.repository }} --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing_pr" ]; then
+            echo "PR #${existing_pr} already exists for $BRANCH"
+            echo "pr_number=$existing_pr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PR_TITLE=$(cat "${RUNNER_TEMP}/pr_title.txt")
+          PR_TITLE="${PR_TITLE:0:256}"
+          pr_url=$(gh pr create \
+            -R ${{ github.repository }} \
+            --draft \
+            --base main \
+            --head "$BRANCH" \
+            --title "$PR_TITLE" \
+            --body-file "${RUNNER_TEMP}/pr_description.txt" | tail -n1)
+          pr_number=$(basename "$pr_url")
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Transition label (pr-open)
+        if: success()
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "agent:pr-open" -R ${{ github.repository }}
+
+      - name: Hand off — mark PR ready for Copilot review
+        if: success()
+        env:
+          PR_NUMBER: ${{ steps.open_pr.outputs.pr_number }}
+        run: |
+          if is_draft=$(gh pr view "$PR_NUMBER" -R ${{ github.repository }} --json isDraft --jq '.isDraft'); then
+            :
+          else
+            status=$?
+            echo "Failed to determine draft state for PR #${PR_NUMBER} (status $status)." > "${RUNNER_TEMP}/failure_reason.txt"
+            exit "$status"
+          fi
+          if [ "$is_draft" != "true" ]; then
+            echo "PR #${PR_NUMBER} is already ready for review."
+            exit 0
+          fi
+          if [ -z "${{ secrets.AGENT_PAT }}" ]; then
+            echo "AGENT_PAT is required to mark the PR ready because GITHUB_TOKEN-created ready_for_review events do not trigger workflows." > "${RUNNER_TEMP}/failure_reason.txt"
+            exit 1
+          fi
+          GH_TOKEN="${{ secrets.AGENT_PAT }}" gh pr ready -R ${{ github.repository }} "$PR_NUMBER"
