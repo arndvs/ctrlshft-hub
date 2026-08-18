@@ -8,18 +8,30 @@ Sandcastle runs autonomous coding agents (architecture review, repo hygiene, PRD
 
 ```mermaid
 graph LR
+    PROD["ctrlshft-public<br/>producer — engine source + docs + ADRs"]
     HUB["sandcastle-hub<br/>engine + actions + templates + labels"]
-    C1["consumer repos (8)<br/>config + workflow stubs only"]
-    C2["consumer repos (8)<br/>config + workflow stubs only"]
+    C1["cmd-public"]
+    C2["launch"]
+    C3["aligned"]
+    C4["PUSH"]
+    C5["riseawake.com"]
+    C6["claude-code-copilot"]
 
+    PROD -->|"publishes engine"| HUB
     HUB -->|"uses: @main"| C1
     HUB -->|"uses: @main"| C2
+    HUB -->|"uses: @main"| C3
+    HUB -->|"uses: @main"| C4
+    HUB -->|"uses: @main"| C5
+    HUB -->|"uses: @main"| C6
 ```
 
 - **`engine/`** — the TypeScript engine (lib, workflows, schemas, `run.ts`, tests). 21 test suites, 336 tests.
 - **`templates/`** — prompt templates, extraction templates, scripts, hooks, labels.
 - **`actions/agent-run/`** — the single composite action consumers call. It checks out the hub at the pinned ref, installs engine deps, runs the engine against the consumer workspace (`--repo`), and summarizes the run.
 - **`.github/workflows/`** — engine CI (tests on every PR) and reusable lifecycle workflows.
+
+> **Producer:** the engine originates in [`arndvs/ctrlshft`](https://github.com/arndvs/ctrlshft) (`shft/engine`), which is published here. Architecture and decision records live in that repo's `docs/` (`sandcastle-hub-architecture.md`, `ADR-008`).
 
 ## Consumer usage
 
