@@ -48,14 +48,14 @@ runs:
     - name: Proxy preflight
       id: proxy-preflight
       shell: bash
-      run: bash "$GITHUB_WORKSPACE/sandcastle-hub/engine/scripts/proxy_preflight.sh"
+      run: bash "$GITHUB_WORKSPACE/sandcastle-hub/templates/scripts/proxy_preflight.sh"
 
     - name: Check workflow enabled (disabledWorkflows)
       id: workflow-enabled
       shell: bash
       run: |
         set -euo pipefail
-        out="$(bash "$GITHUB_WORKSPACE/sandcastle-hub/engine/scripts/check-workflow-enabled.sh" "${{ inputs.workflow }}")"
+        out="$(bash "$GITHUB_WORKSPACE/sandcastle-hub/templates/scripts/check-workflow-enabled.sh" "${{ inputs.workflow }}")"
         if [[ "$out" == "enabled=true" ]]; then
           echo "workflow-enabled=true" >> "$GITHUB_OUTPUT"
         else
