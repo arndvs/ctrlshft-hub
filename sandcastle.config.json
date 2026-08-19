@@ -1,0 +1,20 @@
+{
+  "model": "claude-opus-4-6",
+  "baseBranch": "main",
+  "sandbox": "none",
+  "promptDir": ".sandcastle/prompts",
+  "codingStandards": ".sandcastle/CODING_STANDARDS.md",
+  "contextDoc": "CONTEXT.md",
+  "adrDir": "docs/adr",
+  "packageManager": "pnpm",
+  "proxy": true,
+  "proxyCanary": false,
+  "excludedPaths": [
+    "engine",
+    "templates",
+    "actions",
+    "hub",
+    "bin",
+    "instructions"
+  ]
+}

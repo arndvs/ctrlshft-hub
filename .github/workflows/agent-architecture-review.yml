@@ -1,0 +1,28 @@
+name: "Agent: Architecture Review"
+
+on:
+  schedule:
+    - cron: "0 9 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  architecture-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: agent-architecture-review
+      cancel-in-progress: false
+    env:
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: arndvs/sandcastle-hub/actions/agent-run@main
+        with:
+          workflow: architecture-review
+          ref: main
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
