@@ -79,6 +79,19 @@ runs:
         # (from @anthropic-ai/claude-code) is invocable by the engine.
         echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
+    # Disable agent commit attribution (Co-Authored-By trailers) so bot
+    # commits pass the check-attribution gate. Claude Code adds the trailer
+    # by default; this settings file (shipped from the hub) turns it off for
+    # every consumer repo without per-repo work. Written to the consumer
+    # workspace so the engine's `claude` invocation picks it up.
+    - name: Disable agent commit attribution
+      if: steps.workflow-enabled.outputs.workflow-enabled == 'true'
+      shell: bash
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/.claude"
+        cp "$GITHUB_WORKSPACE/sandcastle-hub/templates/claude-settings.json" "$GITHUB_WORKSPACE/.claude/settings.json"
+        echo "Wrote .claude/settings.json (attribution disabled) to consumer workspace"
+
     - name: Run engine
       id: engine
       if: >
