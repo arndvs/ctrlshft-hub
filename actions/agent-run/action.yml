@@ -75,6 +75,9 @@ runs:
         corepack enable
         cd "$GITHUB_WORKSPACE/sandcastle-hub/engine"
         pnpm --ignore-workspace install --frozen-lockfile
+        # Put the engine's node_modules/.bin on PATH so the `claude` CLI
+        # (from @anthropic-ai/claude-code) is invocable by the engine.
+        echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
 
     - name: Run engine
       id: engine
