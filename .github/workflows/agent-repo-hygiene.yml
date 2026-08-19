@@ -25,6 +25,12 @@ jobs:
       ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
       ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
     steps:
+      # The hub IS the consumer workspace for self-dogfood. Check it out so the
+      # engine has a git repo to operate on ($GITHUB_WORKSPACE).
+      - name: Checkout hub (consumer workspace)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
       - uses: arndvs/sandcastle-hub/actions/agent-run@main
         with:
           workflow: repo-hygiene
