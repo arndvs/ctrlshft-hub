@@ -21,6 +21,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
+      - name: Fetch probe script from hub
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/arndvs/sandcastle-hub/main/templates/scripts/probe_completion.sh" \
+            -o "$RUNNER_TEMP/probe_completion.sh"
+          chmod +x "$RUNNER_TEMP/probe_completion.sh"
+
       - name: Probe proxy (readiness + real completion)
         id: probe
         env:
@@ -51,11 +57,11 @@ jobs:
             exit 0
           fi
 
-          # 2) completion probe via the shared script.
+          # 2) completion probe via the shared script (fetched from hub above).
           # The script always exits 0, writes status/detail/http_code to stdout
           # and GITHUB_OUTPUT. Capture stdout so the same values are available for
           # the status-summary log below (writing twice is idempotent in Actions).
-          probe_script=".sandcastle/scripts/probe_completion.sh"
+          probe_script="$RUNNER_TEMP/probe_completion.sh"
           if [ ! -f "$probe_script" ]; then
             echo "status=fail" >> "$GITHUB_OUTPUT"
             echo "detail=probe script missing: $probe_script" >> "$GITHUB_OUTPUT"
