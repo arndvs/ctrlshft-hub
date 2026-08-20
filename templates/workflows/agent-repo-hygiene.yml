@@ -2,14 +2,17 @@ name: "Agent: Repo Hygiene"
 
 on:
   schedule:
-    # 02:30 UTC, daily. GitHub may delay scheduled runs under load.
-    - cron: "30 2 * * *"
+    - cron: "0 10 * * 1-5"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Draft the issue but do not create it or touch the ledger"
+        description: "Dry run (no issue creation)"
         type: boolean
         default: false
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   repo-hygiene:
@@ -18,141 +21,13 @@ jobs:
     concurrency:
       group: agent-repo-hygiene
       cancel-in-progress: false
-
-    permissions:
-      contents: write
-      issues: write
-
     env:
-      GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
-      GH_REPO: ${{ github.repository }}
-
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
     steps:
-      - name: Checkout workflow actions
-        uses: actions/checkout@v4
+      - uses: arndvs/sandcastle-hub/actions/agent-run@main
         with:
-          ref: dev
-
-      - name: Check workflow enabled (disabledWorkflows)
-        id: workflow-enabled
-        run: |
-          set -euo pipefail
-          out="$(bash .sandcastle/scripts/check-workflow-enabled.sh repo-hygiene)"
-          if [[ "$out" == "enabled=true" ]]; then
-            echo "workflow-enabled=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "workflow-enabled=no" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Proxy preflight
-        if: steps.workflow-enabled.outputs.workflow-enabled == 'yes'
-        id: proxy-preflight
-        env:
-          ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bash .sandcastle/scripts/proxy_preflight.sh
-
-      - name: Stop when proxy preflight skips
-        if: steps.proxy-preflight.outputs.should_run != 'true'
-        run: |
-          echo "Proxy preflight skipped agent run: ${{ steps.proxy-preflight.outputs.reason }}. ${{ steps.proxy-preflight.outputs.detail }}" > "${RUNNER_TEMP}/failure_reason.txt"
-          exit 1
-
-      - name: Sandcastle setup
-        if: steps.proxy-preflight.outputs.should_run == 'true'
-        uses: ./.github/actions/sandcastle-setup
-        with:
-          checkout-ref: dev
-          checkout-fetch-depth: 1
-          skip-checkout: true
+          workflow: repo-hygiene
+          ref: main
           token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          manage-labels: false
-
-      - name: Run repo hygiene
-        if: steps.proxy-preflight.outputs.should_run == 'true'
-        env:
-          ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          set -euo pipefail
-          cd .sandcastle/engine
-          max_attempts=2
-          for attempt in $(seq 1 "$max_attempts"); do
-            echo "Repo hygiene attempt $attempt/$max_attempts"
-            if pnpm --ignore-workspace exec tsx ../run.ts repo-hygiene $([ "${{ github.event.inputs.dry_run }}" = "true" ] && echo --dry-run); then
-              exit 0
-            fi
-            if [ "$attempt" -lt "$max_attempts" ]; then
-              echo "::warning::Repo hygiene attempt $attempt failed; retrying once in 30 seconds."
-              sleep 30
-            fi
-          done
-          echo "Repo hygiene failed after $max_attempts attempts."
-          exit 1
-
-      - name: Publish hygiene issue
-        if: steps.proxy-preflight.outputs.should_run == 'true' && github.event.inputs.dry_run != 'true'
-        id: publish
-        env:
-          OUTPUT_FILE: ${{ runner.temp }}/repo_hygiene_output.json
-          TITLE_FILE: ${{ runner.temp }}/hygiene_title.txt
-          BODY_FILE: ${{ runner.temp }}/hygiene_body.md
-          LABEL: repo-hygiene
-        run: |
-          set -euo pipefail
-          status=$(jq -r '.status' "$OUTPUT_FILE")
-          if [ "$status" != "proposed" ]; then
-            echo "Status is '$status' — nothing to publish."
-            exit 0
-          fi
-
-          title=$(cat "$TITLE_FILE")
-          phase=$(jq -r '.phase' "$OUTPUT_FILE")
-          gh label create "$LABEL" \
-            --color "7057FF" \
-            --description "Backlog issues proposed by the nightly repo-hygiene workflow" \
-            >/dev/null 2>&1 || true
-          gh label create "phase-$phase" \
-            --color "C5DEF5" \
-            --description "Repo-hygiene phase $phase" \
-            >/dev/null 2>&1 || true
-
-          issue_url=$(gh issue create \
-            --title "$title" \
-            --body-file "$BODY_FILE" \
-            --label "$LABEL" \
-            --label "phase-$phase" | tail -n1)
-          issue_number=$(basename "$issue_url")
-
-          echo "issue_url=$issue_url" >> "$GITHUB_OUTPUT"
-          echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
-          echo "Published #${issue_number}: ${issue_url}"
-
-      - name: Summarise run
-        if: always()
-        env:
-          OUTPUT_FILE: ${{ runner.temp }}/repo_hygiene_output.json
-        run: |
-          if [ ! -f "$OUTPUT_FILE" ]; then
-            echo "No output file produced — agent likely crashed before emitting a result."
-            exit 0
-          fi
-
-          status=$(jq -r '.status' "$OUTPUT_FILE")
-          {
-            echo "## Repo hygiene"
-            echo ""
-            if [ "$status" = "proposed" ]; then
-              echo "**Proposed:** ${{ steps.publish.outputs.issue_url }}"
-              echo ""
-              echo "Phase: $(jq -r '.phase' "$OUTPUT_FILE") · Stack: $(jq -r '.stack' "$OUTPUT_FILE")"
-              echo ""
-              echo "$(jq -r '.oneLineSummary' "$OUTPUT_FILE")"
-            elif [ "$status" = "skipped" ]; then
-              reason=$(jq -r '.reason' "$OUTPUT_FILE")
-              echo "**Skipped — $reason.**"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          extra-args: $([ "${{ github.event.inputs.dry_run }}" = "true" ] && echo --dry-run)

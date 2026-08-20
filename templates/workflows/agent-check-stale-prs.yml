@@ -5,47 +5,23 @@ on:
     - cron: "17 9 * * 1-5"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   check-stale:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-
+    concurrency:
+      group: agent-check-stale-prs
+      cancel-in-progress: false
+    env:
+      ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
     steps:
-      - name: Checkout workflow actions
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: arndvs/sandcastle-hub/actions/agent-run@main
         with:
-          ref: {{DEFAULT_BRANCH}}
-
-      - name: Proxy preflight
-        id: proxy-preflight
-        env:
-          ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bash .sandcastle/scripts/proxy_preflight.sh
-
-      - name: Sandcastle setup
-        if: steps.proxy-preflight.outputs.should_run == 'true'
-        uses: ./.github/actions/sandcastle-setup
-        with:
-          checkout-ref: {{DEFAULT_BRANCH}}
-          skip-checkout: true
+          workflow: check-stale-prs
+          ref: main
           token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          manage-labels: false
-
-      - name: Check stale PRs
-        if: steps.proxy-preflight.outputs.should_run == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
-          ANTHROPIC_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          cd .sandcastle/engine
-          pnpm --ignore-workspace exec tsx ../run.ts check-stale-prs
