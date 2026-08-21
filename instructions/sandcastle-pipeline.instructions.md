@@ -41,6 +41,15 @@ the review verdict (`agent:fix` / `agent:merge` / `agent:update-branch`).
 | `phase-4` | `agent-repo-hygiene.yml` | — (phase marker) | repo-hygiene phase 4 — content/data |
 | `phase-5` | `agent-repo-hygiene.yml` | — (phase marker) | repo-hygiene phase 5 — ratchet |
 | `source:keep-tests-tight` | `agent-keep-tests-tight.yml` | — (provenance marker on PR) | human reviews the test-trim PR before merging |
+| `source:code-health` | `agent-code-health.yml` | — (proposal marker) | human triages before applying the ready label |
+| `agent:ready` | **Human** (on code-health issue) | — (acceptance marker) | human applies the implement label to hand to the implementer |
+| `lens:naming` | `agent-code-health.yml` | — (lens marker) | — |
+| `lens:structure` | `agent-code-health.yml` | — (lens marker) | — |
+| `lens:types` | `agent-code-health.yml` | — (lens marker) | — |
+| `lens:orientation` | `agent-code-health.yml` | — (lens marker) | — |
+| `lens:verification` | `agent-code-health.yml` | — (lens marker) | — |
+| `lens:logging` | `agent-code-health.yml` | — (lens marker) | — |
+| `lens:assets` | `agent-code-health.yml` | — (lens marker) | — |
 | `shft` | `defer-to-issue` (engine) | — (review-metadata marker) | — |
 | `hitl` | `defer-to-issue` (engine) | — (review-metadata marker) | — |
 

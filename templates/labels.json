@@ -65,6 +65,51 @@
     "description": "Test-trim PRs opened by the automated keep-tests-tight workflow"
   },
   {
+    "name": "source:code-health",
+    "color": "0e8a16",
+    "description": "Findings from the automated code-health audit"
+  },
+  {
+    "name": "agent:ready",
+    "color": "1d76db",
+    "description": "Human-approved code-health finding, ready for an implementer agent to pick up"
+  },
+  {
+    "name": "lens:naming",
+    "color": "c5def5",
+    "description": "Code-health finding from the naming lens"
+  },
+  {
+    "name": "lens:structure",
+    "color": "c5def5",
+    "description": "Code-health finding from the structure lens"
+  },
+  {
+    "name": "lens:types",
+    "color": "c5def5",
+    "description": "Code-health finding from the types lens"
+  },
+  {
+    "name": "lens:orientation",
+    "color": "c5def5",
+    "description": "Code-health finding from the orientation lens"
+  },
+  {
+    "name": "lens:verification",
+    "color": "c5def5",
+    "description": "Code-health finding from the verification lens"
+  },
+  {
+    "name": "lens:logging",
+    "color": "c5def5",
+    "description": "Code-health finding from the logging lens"
+  },
+  {
+    "name": "lens:assets",
+    "color": "c5def5",
+    "description": "Code-health finding from the assets lens"
+  },
+  {
     "name": "shft",
     "color": "7057ff",
     "description": "Issues created by the Sandcastle engine (e.g. HITL review deferrals)"
