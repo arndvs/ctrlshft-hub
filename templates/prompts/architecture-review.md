@@ -38,5 +38,30 @@ Prefer one proposal that would make future changes easier to reason about. Do no
 - Treat ADRs as binding. Do not propose changes that contradict a recorded decision.
 - Respect project coding standards from `{{CODING_STANDARDS}}` if the file exists.
 - Read-only on the repo. No commits. No edits to `{{CONTEXT_DOC}}`, ADRs, or source files.
+
+# SECONDARY: RECORD OBSERVATIONS, DO NOT ACT ON THEM
+
+While doing the work above you will read code that has problems outside your scope. Record them. Do not fix them, do not mention them in the PR body, and do not let them influence what you change.
+
+This matters most where the observation and your primary task disagree. If a test is weak, that is an observation — it is not a reason to delete the test. Your removal criteria are unchanged by anything you record here.
+
+Append one JSON object per line to `.friction/<today>-<run-id>.jsonl`:
+
+```json
+{"schema":1,"recorded_at":"<ISO8601>","session_ref":"<run-id>","episode":1,"harness":"github-actions","lens":"<lens>","signal":"<signal>","disposition":"observed","fingerprint":"<lens>:<path>:<symbol>","cost":{"tool_calls":0,"files_read_unused":0,"turns":0,"tokens_estimate":0},"statement":"<your own sentence, 40-280 chars>","confidence":"medium","attribution":"pending","episode_boundary":"clear","source":"secondary-observation"}
+```
+
+Record these lenses only:
+
+- `verification` — a test that passes while the behaviour it names could break; assertions that check a call returned rather than what it returned; a test whose failure output would not identify what broke; suspected flakiness.
+- `logging` — an error path that discards its cause; a failure that crosses a module boundary without a trace; whole objects logged where a field would do; anything secret-shaped reaching an output stream.
+
+Rules:
+
+- Costs stay zero. You are not measuring friction, you are noting a defect. Observations are consolidated on a separate track from measured friction — they do not compete on cost, and they cannot displace evidence of what actually cost something.
+- Two independent reporters are required before an observation becomes a finding. One workflow's opinion is not evidence, and a single agent repeating itself nightly is still one opinion.
+- One record per distinct problem. Forty weak assertions in one file are one observation about that file, not forty.
+- Never copy code, test names that reveal proprietary detail, log contents, or configuration values. Path plus your own sentence about the mechanism.
+- If you record nothing, write no file. An empty file is not a clean bill of health and should not be mistaken for one.
 - One PRD per run. If every reasonable candidate is already covered, record why no fresh proposal should be made and stop.
 - No questions to a user. Make the call.
