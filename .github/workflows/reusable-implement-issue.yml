@@ -135,6 +135,27 @@ jobs:
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-label "agent:pr-open" -R ${{ github.repository }}
 
+      # Enforce the code-health allowlist (if the issue is a code-health finding).
+      # The issue body carries a machine-readable `code-health-allowlist` HTML
+      # comment block; check-allowlist.sh validates the PR's diff against it and
+      # fails the run on any out-of-scope file. Non-code-health issues have no
+      # allowlist block, so the script exits 1 with a clear message — but only
+      # code-health issues reach this gate via the agent:ready handoff.
+      - name: Enforce code-health allowlist
+        if: success()
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          PR_NUMBER: ${{ steps.open_pr.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          # Only enforce when the issue carries the code-health source label.
+          labels=$(gh issue view "$ISSUE_NUMBER" -R ${{ github.repository }} --json labels --jq '[.labels[].name] | join(",")')
+          if [[ ",$labels," != *",source:code-health,"* ]]; then
+            echo "Not a code-health issue — skipping allowlist enforcement."
+            exit 0
+          fi
+          bash "$GITHUB_WORKSPACE/sandcastle-hub/templates/scripts/check-allowlist.sh" "$ISSUE_NUMBER" "origin/main"
+
       - name: Hand off — mark PR ready for Copilot review
         if: success()
         env:

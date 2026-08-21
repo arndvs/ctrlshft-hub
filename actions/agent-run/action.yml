@@ -149,14 +149,34 @@ runs:
         echo "## ${{ inputs.workflow }}" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         if [ "$status" = "proposed" ]; then
-          title=$(jq -r '.title // "Untitled"' "$output_file")
-          summary=$(jq -r '.oneLineSummary // ""' "$output_file")
-          echo "**Proposed:** $title" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "$summary" >> "$GITHUB_STEP_SUMMARY"
+          # Two output shapes: single-proposal workflows (title/oneLineSummary)
+          # and code-health (findings[]). Handle both.
+          if jq -e '.findings' "$output_file" >/dev/null 2>&1; then
+            echo "**Proposed findings:**" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            jq -r '.findings[] | "- [\(.severity)] \(.title) (`\(.lens)`)"' "$output_file" >> "$GITHUB_STEP_SUMMARY"
+          else
+            title=$(jq -r '.title // "Untitled"' "$output_file")
+            summary=$(jq -r '.oneLineSummary // ""' "$output_file")
+            echo "**Proposed:** $title" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "$summary" >> "$GITHUB_STEP_SUMMARY"
+          fi
         elif [ "$status" = "skipped" ]; then
           reason=$(jq -r '.reason // ""' "$output_file")
           echo "**Skipped** — $reason" >> "$GITHUB_STEP_SUMMARY"
+        elif [ "$status" = "error" ]; then
+          reason=$(jq -r '.reason // ""' "$output_file")
+          echo "::error::${{ inputs.workflow }} reported an error: $reason"
+          echo "**Agent error** — $reason" >> "$GITHUB_STEP_SUMMARY"
         else
-          echo "Status: $status" >> "$GITHUB_STEP_SUMMARY"
+          # An unrecognised status is more alarming than a crash — it means the
+          # contract changed. Surface the payload rather than falling through
+          # silently.
+          echo "::error::${{ inputs.workflow }} returned unrecognised status '$status'. Raw output:"
+          cat "$output_file"
+          echo "**Unrecognised status \`$status\`** — raw output:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "$output_file" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
         fi
