@@ -101,6 +101,30 @@ runs:
         cp "$GITHUB_WORKSPACE/sandcastle-hub/templates/claude-settings.json" "$GITHUB_WORKSPACE/.claude/settings.json"
         echo "Wrote .claude/settings.json (attribution disabled) to consumer workspace"
 
+    # Code-health only: collect friction evidence + known findings so the lens
+    # agent ranks by measured cost and suppresses already-known findings. The
+    # engine reads these via FRICTION_CANDIDATES_FILE / KNOWN_FINDINGS_FILE.
+    - name: Collect code-health friction evidence
+      if: >
+        inputs.workflow == 'code-health' &&
+        steps.workflow-enabled.outputs.workflow-enabled == 'true' &&
+        steps.proxy-preflight.outputs.should_run == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+        LABEL: source:code-health
+        KNOWN_FILE: ${{ runner.temp }}/known_findings.json
+      run: |
+        set -euo pipefail
+        # Known findings (open/fixed/declined) for dedup.
+        bash "$GITHUB_WORKSPACE/sandcastle-hub/templates/scripts/collect-known-findings.sh"
+        # Ranked friction candidates from the session store.
+        python3 "$GITHUB_WORKSPACE/sandcastle-hub/templates/scripts/consolidate-friction.py" \
+          --store "$GITHUB_WORKSPACE/.friction" \
+          --known "$RUNNER_TEMP/known_findings.json" \
+          --out "$RUNNER_TEMP/friction_candidates.json"
+
     - name: Run engine
       id: engine
       if: >
@@ -111,6 +135,8 @@ runs:
         OUTPUT_DIR: ${{ runner.temp }}
         GITHUB_TOKEN: ${{ inputs.token }}
         GH_REPO: ${{ github.repository }}
+        FRICTION_CANDIDATES_FILE: ${{ runner.temp }}/friction_candidates.json
+        KNOWN_FINDINGS_FILE: ${{ runner.temp }}/known_findings.json
       run: |
         set -euo pipefail
         cd "$GITHUB_WORKSPACE/sandcastle-hub/engine"
