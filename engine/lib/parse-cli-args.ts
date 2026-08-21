@@ -12,6 +12,7 @@ export interface CliArgs {
   prdTitle?: string;
   subIssueNumber?: string;
   subIssueTitle?: string;
+  lens?: string;
   dryRun: boolean;
 }
 
@@ -28,11 +29,12 @@ const flagsRequiringValues = new Map<string, keyof Omit<CliArgs, "workflow" | "d
   ["--prd-title", "prdTitle"],
   ["--sub-issue-number", "subIssueNumber"],
   ["--sub-issue-title", "subIssueTitle"],
+  ["--lens", "lens"],
 ]);
 
 export function parseCli(argv: string[]): CliArgs {
   if (argv.length === 0) {
-    throw new Error("Missing workflow name. Usage: run.ts <workflow-name> [--issue N] [--issue-title TEXT] [--pr N] [--repo PATH] [--round N] [--max-rounds N] [--branch REF] [--base-ref REF] [--prd-number N] [--prd-title TEXT] [--sub-issue-number N] [--sub-issue-title TEXT] [--dry-run]");
+    throw new Error("Missing workflow name. Usage: run.ts <workflow-name> [--issue N] [--issue-title TEXT] [--pr N] [--repo PATH] [--round N] [--max-rounds N] [--branch REF] [--base-ref REF] [--prd-number N] [--prd-title TEXT] [--sub-issue-number N] [--sub-issue-title TEXT] [--lens NAME] [--dry-run]");
   }
 
   const workflow = argv[0]!;

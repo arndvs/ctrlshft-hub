@@ -142,6 +142,32 @@ const workflows: Record<string, WorkflowRunner> = {
       fs.writeFileSync(join(outputDir, "hygiene_body.md"), result.body);
     }
   },
+
+  "code-health": async ({ args, repoDir, templatesDir }) => {
+    const { runCodeHealth, publishFindings } = await import("../workflows/code-health.js");
+    const result = await runCodeHealth({
+      repoDir,
+      templatesDir,
+      lens: args.lens,
+      dryRun: args.dryRun,
+      frictionCandidatesFile: process.env["FRICTION_CANDIDATES_FILE"],
+      knownFindingsFile: process.env["KNOWN_FINDINGS_FILE"],
+    });
+    const fs = await import("node:fs");
+    const outputDir = outputDirPath();
+    fs.writeFileSync(join(outputDir, "code_health_output.json"), JSON.stringify(result, null, 2));
+
+    // Publish one issue per finding (unless dry-run). The audit never applies
+    // agent:ready itself — a human does that to hand a finding to the
+    // implementer workflow.
+    if (result.status === "proposed" && !args.dryRun) {
+      const repo = process.env["GITHUB_REPOSITORY"];
+      if (!repo) throw new Error("GITHUB_REPOSITORY environment variable is required");
+      const published = publishFindings({ findings: result.findings, repoDir, repo });
+      fs.writeFileSync(join(outputDir, "code_health_published.json"), JSON.stringify(published, null, 2));
+      console.log(`[code-health] Published ${published.length} finding(s) as issues.`);
+    }
+  },
 };
 
 export const WORKFLOW_NAMES = Object.keys(workflows);
