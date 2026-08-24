@@ -27,7 +27,7 @@ This root is the **vendor source** — one-way copy out. See
   artifacts; never edit them here or in consumers as source
 - `ctrlshft-public/shft/templates/workflows/` — that's a MIRROR; keep in sync
   via `bin/sync-hub-templates.sh`, don't edit independently
-- `claude-code-copilot`, other consumers — runtime, not product content
+- `llm-gateway`, other consumers — runtime, not product content
 
 ## Conventions
 

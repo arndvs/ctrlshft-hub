@@ -15,7 +15,7 @@ graph LR
     C3["aligned"]
     C4["PUSH"]
     C5["riseawake.com"]
-    C6["claude-code-copilot"]
+    C6["llm-gateway"]
 
     PROD -->|"publishes engine"| HUB
     HUB -->|"uses: @main"| C1
