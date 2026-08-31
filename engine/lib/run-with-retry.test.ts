@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { run, StructuredOutputError, Output } from "@ai-hero/sandcastle";
 import { z } from "zod";
 import { runWithRetry } from "./run-with-retry.js";
+import { waitForSessionFile } from "./wait-for-session-file.js";
 
 vi.mock("@ai-hero/sandcastle", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ai-hero/sandcastle")>();
   return { ...actual, run: vi.fn() };
 });
 
+vi.mock("./wait-for-session-file.js", () => ({
+  waitForSessionFile: vi.fn(),
+}));
+
 const mockRun = vi.mocked(run);
+const mockWaitForSessionFile = vi.mocked(waitForSessionFile);
 
 const schema = z.object({ value: z.string() });
 const output = Output.object({ tag: "output", schema });
@@ -53,6 +59,9 @@ function structuredError(
 
 beforeEach(() => {
   mockRun.mockReset();
+  mockWaitForSessionFile.mockReset();
+  // Default: the failed session's file is present, so the resumed retry is used.
+  mockWaitForSessionFile.mockResolvedValue(true);
 });
 
 describe("runWithRetry", () => {
@@ -177,5 +186,34 @@ describe("runWithRetry", () => {
     await expect(runWithRetry(baseOptions())).rejects.toThrow(/no sessionId/);
     // Initial call only — we can't resume without a sessionId.
     expect(mockRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for the failed session file before resuming the retry", async () => {
+    mockRun
+      .mockRejectedValueOnce(structuredError('{"a":1}'))
+      .mockResolvedValueOnce(successResult("recovered"));
+
+    await runWithRetry(baseOptions());
+
+    expect(mockWaitForSessionFile).toHaveBeenCalledWith("sess-1");
+    // The resumed path is used when the file is present.
+    expect(mockRun.mock.calls[1]![0].resumeSession).toBe("sess-1");
+  });
+
+  it("retries fresh (no resumeSession) when the failed session file never appears", async () => {
+    mockWaitForSessionFile.mockResolvedValue(false);
+    mockRun
+      .mockRejectedValueOnce(structuredError('{"a":1}'))
+      .mockResolvedValueOnce(successResult("recovered"));
+
+    const result = await runWithRetry(baseOptions());
+
+    expect(result.output).toEqual({ value: "recovered" });
+    expect(mockRun).toHaveBeenCalledTimes(2);
+    // The retry must NOT resume the missing session.
+    const retryCall = mockRun.mock.calls[1]![0];
+    expect(retryCall).not.toHaveProperty("resumeSession");
+    // It still feeds back the failure so the agent can correct the output.
+    expect(retryCall.prompt).toContain("Previous attempt failed");
   });
 });

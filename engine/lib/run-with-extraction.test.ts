@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { run, StructuredOutputError, Output } from "@ai-hero/sandcastle";
 import { z } from "zod";
 import { runWithExtraction } from "./run-with-extraction.js";
+import { waitForSessionFile } from "./wait-for-session-file.js";
 
 vi.mock("@ai-hero/sandcastle", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ai-hero/sandcastle")>();
   return { ...actual, run: vi.fn() };
 });
 
+vi.mock("./wait-for-session-file.js", () => ({
+  waitForSessionFile: vi.fn(),
+}));
+
 const mockRun = vi.mocked(run);
+const mockWaitForSessionFile = vi.mocked(waitForSessionFile);
 
 const schema = z.object({ value: z.string() });
 const output = Output.object({ tag: "output", schema });
@@ -69,6 +75,9 @@ function structuredError(
 
 beforeEach(() => {
   mockRun.mockReset();
+  mockWaitForSessionFile.mockReset();
+  // Default: the session file is present, so the resumed path is used.
+  mockWaitForSessionFile.mockResolvedValue(true);
 });
 
 describe("runWithExtraction", () => {
@@ -193,5 +202,56 @@ describe("runWithExtraction", () => {
       /no sessionId/
     );
     expect(mockRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for the session file before resuming the extraction", async () => {
+    mockRun
+      .mockResolvedValueOnce(produceResult())
+      .mockResolvedValueOnce(extractionResult("ok"));
+
+    await runWithExtraction(baseOptions());
+
+    expect(mockWaitForSessionFile).toHaveBeenCalledWith("sess-1");
+    // The resumed path is used when the file is present.
+    expect(mockRun.mock.calls[1]![0].resumeSession).toBe("sess-1");
+  });
+
+  it("falls back to a fresh extraction (no resumeSession) when the session file never appears", async () => {
+    mockWaitForSessionFile.mockResolvedValue(false);
+    mockRun
+      .mockResolvedValueOnce(produceResult())
+      .mockResolvedValueOnce(extractionResult("ok"));
+
+    const result = await runWithExtraction(baseOptions());
+
+    expect(result.output).toEqual({ value: "ok" });
+    expect(mockRun).toHaveBeenCalledTimes(2);
+    // The extraction call must NOT resume the missing session.
+    const extractCall = mockRun.mock.calls[1]![0];
+    expect(extractCall).not.toHaveProperty("resumeSession");
+    expect(extractCall.prompt).toBe("Emit the <output> block.");
+  });
+
+  it("still retries within the fresh extraction when the session file is missing", async () => {
+    // The produce session file is missing (first wait → false), but the failed
+    // extraction's own session file exists (retry wait → true), so the retry
+    // resumes the extraction session.
+    mockWaitForSessionFile
+      .mockResolvedValueOnce(false)
+      .mockResolvedValue(true);
+    mockRun
+      .mockResolvedValueOnce(produceResult())
+      .mockRejectedValueOnce(structuredError(undefined))
+      .mockResolvedValueOnce(extractionResult("recovered"));
+
+    const result = await runWithExtraction(baseOptions());
+
+    expect(result.output).toEqual({ value: "recovered" });
+    expect(mockRun).toHaveBeenCalledTimes(3);
+    // The first extraction must NOT resume the missing produce session.
+    expect(mockRun.mock.calls[1]![0]).not.toHaveProperty("resumeSession");
+    // The retry resumes the *failed extraction's own* session (which exists),
+    // not the missing produce session.
+    expect(mockRun.mock.calls[2]![0].resumeSession).toBe("sess-extract");
   });
 });

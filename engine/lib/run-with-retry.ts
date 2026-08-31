@@ -6,6 +6,7 @@ import {
   type RunResult,
 } from "@ai-hero/sandcastle";
 import { buildRetryFeedback } from "./retry-feedback.js";
+import { waitForSessionFile } from "./wait-for-session-file.js";
 
 /**
  * Options for {@link runWithRetry} — the standard `run()` options with `output`
@@ -38,6 +39,11 @@ export interface RunWithRetryOptions<T> extends Omit<RunOptions, "output"> {
  *    emitted and why it failed. The session still holds all the agent's work, so
  *    it only needs to re-emit corrected output — nothing is re-done. Retry up to
  *    `maxAttempts` times total.
+ *
+ *    Before resuming, the wrapper waits for the failed session's JSONL to
+ *    appear on disk (see {@link waitForSessionFile}). If it never appears, the
+ *    retry runs FRESH (no `resumeSession`) with the same feedback prompt — the
+ *    prompt is self-contained, so a fresh session can still correct the output.
  *
  * Resuming the failed session (rather than re-running from scratch) is only
  * possible because `StructuredOutputError` carries `sessionId` — see the host's
@@ -75,6 +81,19 @@ export async function runWithRetry<T>(
         );
       }
 
+      // The Sandcastle library hard-requires the session JSONL to exist on
+      // disk before it will resume. Wait briefly for it; if it never appears,
+      // retry FRESH (no resumeSession) rather than failing the whole run — the
+      // feedback prompt is self-contained, so a fresh session can still
+      // correct the output.
+      const sessionFileReady = await waitForSessionFile(sessionId);
+      if (!sessionFileReady) {
+        console.warn(
+          `[runWithRetry] Session file for "${sessionId}" not found after wait — ` +
+            "retrying with a fresh session instead of resuming.",
+        );
+      }
+
       // The retry uses an inline `prompt` (the feedback message), so drop
       // `promptArgs` — Sandcastle only allows promptArgs alongside a promptFile,
       // and the feedback prompt needs no substitution.
@@ -86,7 +105,9 @@ export async function runWithRetry<T>(
           : undefined,
         promptFile: undefined,
         prompt: buildRetryFeedback(lastError, attempt, maxAttempts),
-        resumeSession: sessionId,
+        // Only resume when the session file is on disk; omit the key entirely
+        // when absent so the retry runs fresh.
+        ...(sessionFileReady ? { resumeSession: sessionId } : {}),
         output,
       });
     } catch (error) {

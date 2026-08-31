@@ -5,6 +5,7 @@ import {
   type RunResult,
 } from "@ai-hero/sandcastle";
 import { runWithRetry } from "./run-with-retry.js";
+import { waitForSessionFile } from "./wait-for-session-file.js";
 
 /**
  * Options for {@link runWithExtraction} — the standard `run()` options, but with
@@ -48,6 +49,14 @@ export interface RunWithExtractionOptions<T> extends Omit<
  *    session with feedback, so the correction happens in-context without
  *    re-doing the work or re-sending the prompt.
  *
+ *    Before resuming, the wrapper waits for the produce session's JSONL to
+ *    appear on disk (see {@link waitForSessionFile}). If it never appears —
+ *    which happens on fresh runners where the noSandbox provider cannot
+ *    deterministically transfer the session — the extraction falls back to a
+ *    FRESH session (no `resumeSession`). The produce work is preserved in the
+ *    repo; only the in-context memory is lost, and the extraction prompt is
+ *    self-contained, so a fresh session can still emit valid output.
+ *
  * Returns the produce run's result (commits, branch, stdout) with the
  * extraction run's `output` — extraction must not commit, so the produce
  * commits are the source of truth for callers that inspect `commits`.
@@ -81,12 +90,31 @@ export async function runWithExtraction<T>(
   // a promptFile, and the extraction prompt needs no substitution.
   const { promptArgs: _produceArgs, ...extractionOptions } = produceOptions;
 
+  // The Sandcastle library hard-requires the session JSONL to exist on disk
+  // before it will resume (createWorktree checks existsSync on the host store
+  // path). With the noSandbox provider there is no bind-mount handle, so the
+  // deterministic transferSession never runs — the file is written only by
+  // Claude Code itself, asynchronously. Wait briefly for it; if it never
+  // appears, fall back to a FRESH extraction session rather than failing the
+  // whole run. The produce work is already preserved in the repo; only the
+  // in-context memory is lost, and the extraction prompt is self-contained.
+  const sessionFileReady = await waitForSessionFile(sessionId);
+  if (!sessionFileReady) {
+    console.warn(
+      `[runWithExtraction] Session file for "${sessionId}" not found after wait — ` +
+        "resuming a fresh extraction session instead of the produce session.",
+    );
+  }
+
   const extraction = await runWithRetry({
     ...extractionOptions,
     name: produceOptions.name ? `${produceOptions.name} (extract)` : undefined,
     promptFile: undefined,
     prompt: extractionPrompt,
-    resumeSession: sessionId,
+    // Only resume when the session file is on disk — the Sandcastle library
+    // hard-requires it to exist before it will resume. When absent, omit the
+    // key entirely so the extraction runs fresh.
+    ...(sessionFileReady ? { resumeSession: sessionId } : {}),
     output,
     maxAttempts,
   });
