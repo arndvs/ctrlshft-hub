@@ -74,9 +74,9 @@ try:
     with open(os.environ.get("SANDCASTLE_CONFIG_PATH") or "sandcastle.config.json", encoding="utf-8") as handle:
         config = json.load(handle)
 except Exception:
-    print("claude-opus-4-6", end="")
+    print("claude-opus-4-7", end="")
 else:
-    print(config.get("model") or "claude-opus-4-6", end="")
+    print(config.get("model") or "claude-opus-4-7", end="")
 PY
 )"
 
