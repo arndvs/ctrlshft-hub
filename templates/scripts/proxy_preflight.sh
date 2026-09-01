@@ -66,7 +66,7 @@ fi
 base="${base%/}"
 base="${base%/v1}"
 
-model="$("$python_bin" - <<'PY' 2>/dev/null || echo "claude-opus-4-6"
+model="$("$python_bin" - <<'PY' 2>/dev/null || echo "claude-opus-4-7"
 import json
 import os
 
