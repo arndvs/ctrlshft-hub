@@ -1,8 +1,8 @@
 # ctrlshft-hub
 
-**Single source of truth for the Sandcastle agent engine.**
+**Single source of truth for the ctrl+shft agent engine.**
 
-Sandcastle runs autonomous coding agents (architecture review, repo hygiene, PRD implementation, PR review, merge, and more) against GitHub repositories. This repo is the **hub**: the one place the engine, templates, and actions live. Consumer repos reference it remotely — nothing is vendored, nothing drifts.
+The agent engine runs autonomous coding agents (architecture review, repo hygiene, PRD implementation, PR review, merge, and more) against GitHub repositories. This repo is the **hub**: the one place the engine, templates, and actions live. Consumer repos reference it remotely — nothing is vendored, nothing drifts.
 
 ## Architecture
 

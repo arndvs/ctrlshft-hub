@@ -1,6 +1,6 @@
 # AGENTS.md — ctrlshft-hub
 
-`ctrlshft-hub` is the **single source of truth** for the Sandcastle engine,
+`ctrlshft-hub` is the **single source of truth** for the ctrl+shft agent engine,
 templates, actions, and labels. Consumers reference it remotely via
 `uses: arndvs/ctrlshft-hub/...@main`; nothing is vendored into consumers.
 
