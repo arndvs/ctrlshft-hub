@@ -61,7 +61,7 @@ jobs:
 
       - name: Run keep-tests-tight via hub action
         id: agent
-        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: keep-tests-tight
           ref: ${{ inputs.engine-ref }}

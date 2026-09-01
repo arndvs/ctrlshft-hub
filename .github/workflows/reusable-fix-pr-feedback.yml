@@ -45,7 +45,7 @@ jobs:
 
       - name: Run fix-pr-feedback via hub action
         id: agent
-        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: fix-pr-feedback
           ref: ${{ inputs.engine-ref }}

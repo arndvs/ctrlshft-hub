@@ -1,4 +1,4 @@
-# ADR-001 — sandcastle-hub is the single source of truth for the engine
+# ADR-001 — ctrlshft-hub is the single source of truth for the engine
 
 **Status:** Accepted
 **Date:** 2026-08-18
@@ -13,10 +13,10 @@ source of truth, with consumers referencing it remotely.
 
 ## Decision
 
-This repo (`arndvs/sandcastle-hub`) is the sole home of the Sandcastle engine,
+This repo (`arndvs/ctrlshft-hub`) is the sole home of the Sandcastle engine,
 templates, actions, and labels. Consumers keep only `sandcastle.config.json` +
 thin workflow stubs + a `hub-version.json` SHA-lock, and reference the hub via
-`uses: arndvs/sandcastle-hub/...@<ref>`.
+`uses: arndvs/ctrlshft-hub/...@<ref>`.
 
 The engine layout constraint: `engine/` and `templates/` MUST be siblings
 (`resolveDefaultTemplatesDir` walks `../../templates/prompts` from

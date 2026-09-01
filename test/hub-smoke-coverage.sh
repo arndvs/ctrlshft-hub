@@ -3,7 +3,7 @@
 # thin stub that references the hub itself, and that every referenced hub
 # workflow/action exists.
 #
-# This is the structural QA gate for the hub repo (arndvs/sandcastle-hub):
+# This is the structural QA gate for the hub repo (arndvs/ctrlshft-hub):
 # the single source of truth for the Sandcastle engine. It ensures no stale
 # vendored-model template can silently return (the drift pattern that the
 # producer fixed in f075ea1). It checks:
@@ -63,10 +63,10 @@ for wf_file in "${agent_templates[@]}"; do
     wf_path="$ROOT/templates/workflows/$wf_file"
 
     # Must reference the hub (agent-run composite or reusable-*.yml call).
-    if grep -qE "uses: arndvs/sandcastle-hub/" "$wf_path"; then
+    if grep -qE "uses: arndvs/ctrlshft-hub/" "$wf_path"; then
         _record_pass "$wf_file references hub"
     else
-        _record_fail "$wf_file references hub" "no uses: arndvs/sandcastle-hub/ found"
+        _record_fail "$wf_file references hub" "no uses: arndvs/ctrlshft-hub/ found"
         hub_agent_missing+=("$wf_file")
     fi
 

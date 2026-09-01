@@ -1,8 +1,8 @@
-# AGENTS.md — sandcastle-hub
+# AGENTS.md — ctrlshft-hub
 
-`sandcastle-hub` is the **single source of truth** for the Sandcastle engine,
+`ctrlshft-hub` is the **single source of truth** for the Sandcastle engine,
 templates, actions, and labels. Consumers reference it remotely via
-`uses: arndvs/sandcastle-hub/...@main`; nothing is vendored into consumers.
+`uses: arndvs/ctrlshft-hub/...@main`; nothing is vendored into consumers.
 
 ## Canonical invariants
 

@@ -1,9 +1,9 @@
-# sandcastle-hub — Context
+# ctrlshft-hub — Context
 
 **Single source of truth for the Sandcastle agent engine.**
 
 This repo is the hub: the one place the engine, templates, and actions live.
-Consumer repos reference it remotely via `uses: arndvs/sandcastle-hub/...@<ref>`.
+Consumer repos reference it remotely via `uses: arndvs/ctrlshft-hub/...@<ref>`.
 Nothing is vendored into consumers; nothing drifts.
 
 ## Layout

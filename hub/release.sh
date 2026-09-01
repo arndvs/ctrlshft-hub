@@ -2,7 +2,7 @@
 # release.sh — Create a Sandcastle hub release.
 #
 # The hub is the single source of truth for the Sandcastle engine. Consumers
-# reference it remotely via `uses: arndvs/sandcastle-hub/...@<ref>`. A release
+# reference it remotely via `uses: arndvs/ctrlshft-hub/...@<ref>`. A release
 # tags a stable version and records the pinned SHA so consumers can:
 #   - stay on @main (instant updates), or
 #   - pin to a vX.Y.Z tag / SHA for stability.
@@ -116,5 +116,5 @@ echo "Consumers can now pin to:"
 echo "  { \"ref\": \"${NEW_TAG}\", \"lastPinnedSha\": \"${CURRENT_SHA}\", \"reviewedAt\": \"$(date +%F)\" }"
 echo ""
 echo "Or update their workflow stubs to:"
-echo "  uses: arndvs/sandcastle-hub/actions/agent-run@${NEW_TAG}"
-echo "  uses: arndvs/sandcastle-hub/.github/workflows/reusable-*.yml@${NEW_TAG}"
+echo "  uses: arndvs/ctrlshft-hub/actions/agent-run@${NEW_TAG}"
+echo "  uses: arndvs/ctrlshft-hub/.github/workflows/reusable-*.yml@${NEW_TAG}"

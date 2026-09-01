@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Run merge-pr via hub action
         id: agent
-        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: merge-pr
           ref: ${{ inputs.engine-ref }}

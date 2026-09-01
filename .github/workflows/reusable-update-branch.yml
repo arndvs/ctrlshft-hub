@@ -53,7 +53,7 @@ jobs:
 
       - name: Run update-branch via hub action
         id: agent
-        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: update-branch
           ref: ${{ inputs.engine-ref }}

@@ -5,7 +5,7 @@ This directory holds the hub's release and operational tooling.
 ## Releasing
 
 The hub is the single source of truth for the Sandcastle engine. Consumers
-reference it remotely via `uses: arndvs/sandcastle-hub/...@<ref>`. A release
+reference it remotely via `uses: arndvs/ctrlshft-hub/...@<ref>`. A release
 tags a stable version so consumers can pin to it.
 
 ```bash
@@ -38,8 +38,8 @@ After a release, a consumer can pin its `.sandcastle/hub-version.json`:
 Or update workflow stubs to reference the tag:
 
 ```yaml
-uses: arndvs/sandcastle-hub/actions/agent-run@v1.2.4
-uses: arndvs/sandcastle-hub/.github/workflows/reusable-keep-tests-tight.yml@v1.2.4
+uses: arndvs/ctrlshft-hub/actions/agent-run@v1.2.4
+uses: arndvs/ctrlshft-hub/.github/workflows/reusable-keep-tests-tight.yml@v1.2.4
 ```
 
 ## Linear provisioning

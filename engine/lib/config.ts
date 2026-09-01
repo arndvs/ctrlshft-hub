@@ -7,7 +7,7 @@ const unsupportedSandboxMessage =
 
 /**
  * Paths that are hub-owned and must never be proposed for changes by
- * per-repo agents. These live in arndvs/sandcastle-hub (the hub) and are
+ * per-repo agents. These live in arndvs/ctrlshft-hub (the hub) and are
  * referenced remotely by every consumer, so proposing edits to them from a
  * consumer repo would create divergent, sole-source drift.
  *

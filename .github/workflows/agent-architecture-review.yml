@@ -21,7 +21,7 @@ jobs:
       ANTHROPIC_AUTH_TOKEN: ${{ secrets.LITELLM_MASTER_KEY }}
     steps:
       # agent-run now checks out the consumer workspace (this repo) itself.
-      - uses: arndvs/sandcastle-hub/actions/agent-run@main
+      - uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: architecture-review
           ref: main

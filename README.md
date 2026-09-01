@@ -1,4 +1,4 @@
-# sandcastle-hub
+# ctrlshft-hub
 
 **Single source of truth for the Sandcastle agent engine.**
 
@@ -9,7 +9,7 @@ Sandcastle runs autonomous coding agents (architecture review, repo hygiene, PRD
 ```mermaid
 graph LR
     PROD["ctrlshft-public<br/>producer — engine source + docs + ADRs"]
-    HUB["sandcastle-hub<br/>engine + actions + templates + labels"]
+    HUB["ctrlshft-hub<br/>engine + actions + templates + labels"]
     C1["cmd-public"]
     C2["launch"]
     C3["aligned"]
@@ -53,7 +53,7 @@ jobs:
   architecture-review:
     runs-on: ubuntu-latest
     steps:
-      - uses: arndvs/sandcastle-hub/actions/agent-run@main
+      - uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: architecture-review
           ref: main

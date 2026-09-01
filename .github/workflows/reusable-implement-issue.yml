@@ -85,7 +85,7 @@ jobs:
 
       - name: Run implement-issue via hub action
         id: agent
-        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: implement-issue
           ref: ${{ inputs.engine-ref }}
@@ -100,7 +100,7 @@ jobs:
 
       - name: Write PR title and description
         if: success()
-        uses: arndvs/sandcastle-hub/actions/agent-run@main
+        uses: arndvs/ctrlshft-hub/actions/agent-run@main
         with:
           workflow: write-pr
           ref: ${{ inputs.engine-ref }}
