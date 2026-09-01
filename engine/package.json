@@ -12,8 +12,8 @@
     "start": "echo 'Use workflow runners via .sandcastle/run.ts dispatcher'"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.172",
     "@ai-hero/sandcastle": "^0.5.12",
+    "@anthropic-ai/claude-code": "^2.1.172",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -28,6 +28,9 @@
       "@parcel/watcher",
       "esbuild",
       "msgpackr-extract"
-    ]
+    ],
+    "patchedDependencies": {
+      "@ai-hero/sandcastle@0.5.12": "patches/@ai-hero__sandcastle@0.5.12.patch"
+    }
   }
 }

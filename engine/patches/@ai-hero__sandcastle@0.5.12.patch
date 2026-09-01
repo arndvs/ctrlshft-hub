@@ -1,0 +1,75 @@
+diff --git a/dist/extractStructuredOutput.js b/dist/extractStructuredOutput.js
+index 6d3452d2f3051e0258f331bf82be633c50f28221..57600a2dd237134b005ef92c6a567e48e960652d 100644
+--- a/dist/extractStructuredOutput.js
++++ b/dist/extractStructuredOutput.js
+@@ -64,20 +64,37 @@ const extractString = (stdout, definition, context) => {
+ const findLastTagContent = (text, tag) => {
+     const openTag = `<${tag}>`;
+     const closeTag = `</${tag}>`;
+-    let lastContent;
+-    let searchFrom = 0;
++    // Scan right-to-left and return the last COMPLETE `<tag>...</tag>` pair.
++    //
++    // The old left-to-right scan broke when the agent's own reasoning quoted the
++    // literal `<tag>` in prose before emitting the real block: the prose `<tag>`
++    // opened a pair whose closing tag was the real `</output>`, and everything
++    // between them (prose + the real open tag + JSON) was captured as one invalid
++    // blob. Scanning from the end means the last `<tag>` is always the real one
++    // the agent emitted last; we verify it has a `</tag>` after it, take that
++    // complete pair, and stop — earlier prose mentions can never win.
++    let searchFrom = text.length;
+     while (true) {
+-        const openIdx = text.indexOf(openTag, searchFrom);
++        const openIdx = text.lastIndexOf(openTag, searchFrom);
+         if (openIdx === -1)
+-            break;
++            return undefined;
+         const contentStart = openIdx + openTag.length;
+         const closeIdx = text.indexOf(closeTag, contentStart);
+-        if (closeIdx === -1)
+-            break;
+-        lastContent = text.slice(contentStart, closeIdx);
+-        searchFrom = closeIdx + closeTag.length;
++        if (closeIdx === -1) {
++            // Last open tag has no close (truncated output) — skip it and keep
++            // scanning for an earlier complete pair.
++            searchFrom = openIdx - 1;
++            continue;
++        }
++        const content = text.slice(contentStart, closeIdx);
++        // Guard: if the captured content itself contains the literal open tag
++        // (prose mention between the real pair), re-scan before this open tag.
++        if (content.includes(openTag)) {
++            searchFrom = openIdx - 1;
++            continue;
++        }
++        return content;
+     }
+-    return lastContent;
+ };
+ // ---------------------------------------------------------------------------
+ // Fence-aware unwrap (object mode only)
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 75dfb824fcf294963eb256be64f6e42a5882f8b8..8e5c07a165297c6acde17b2e53f1904bbcdb164c 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -14,6 +14,7 @@ export { SessionPaths, sessionPathsLayer, defaultSessionPathsLayer, } from "./Se
+ export type { SandboxHooks } from "./SandboxLifecycle.js";
+ export type { MountConfig } from "./MountConfig.js";
+ export { Output, StructuredOutputError } from "./Output.js";
++export { extractStructuredOutput } from "./extractStructuredOutput.js";
+ export type { OutputDefinition, OutputObjectDefinition, OutputStringDefinition, } from "./Output.js";
+ export { CwdError } from "./resolveCwd.js";
+ export { claudeCode, codex, opencode, pi } from "./AgentProvider.js";
+diff --git a/dist/index.js b/dist/index.js
+index 62f3f0fa029f70c35e898261318d1330168468fa..9681a2df7a2fe7c0f1012e645c530f6b15efe328 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -5,6 +5,7 @@ export { createWorktree } from "./createWorktree.js";
+ export { hostSessionStore, sandboxSessionStore, transferSession, } from "./SessionStore.js";
+ export { SessionPaths, sessionPathsLayer, defaultSessionPathsLayer, } from "./SessionPaths.js";
+ export { Output, StructuredOutputError } from "./Output.js";
++export { extractStructuredOutput } from "./extractStructuredOutput.js";
+ export { CwdError } from "./resolveCwd.js";
+ export { claudeCode, codex, opencode, pi } from "./AgentProvider.js";
+ export { createBindMountSandboxProvider, createIsolatedSandboxProvider, } from "./SandboxProvider.js";
