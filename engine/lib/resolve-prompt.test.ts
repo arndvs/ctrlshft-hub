@@ -7,7 +7,7 @@ import type { SandcastleConfig } from "./config.js";
 
 function makeConfig(overrides: Partial<SandcastleConfig> = {}): SandcastleConfig {
   return {
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     baseBranch: "main",
     sandbox: "none",
     promptDir: ".sandcastle/prompts",

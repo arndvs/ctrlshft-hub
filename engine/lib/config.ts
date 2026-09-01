@@ -28,7 +28,7 @@ export const DEFAULT_EXCLUDED_PATHS = [
 ];
 
 const SandcastleConfigSchema = z.object({
-  model: z.string().default("claude-opus-4-6"),
+  model: z.string().default("claude-opus-4-7"),
   baseBranch: z.string().default("main"),
   sandbox: z.literal("none", {
     errorMap: () => ({ message: unsupportedSandboxMessage }),

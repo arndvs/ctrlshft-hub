@@ -31,7 +31,7 @@ describe("loadConfig", () => {
   it("returns all defaults when config file is missing", async () => {
     const config = await loadConfig({ cwd: tempDir });
 
-    expect(config.model).toBe("claude-opus-4-6");
+    expect(config.model).toBe("claude-opus-4-7");
     expect(config.baseBranch).toBe("main");
     expect(config.sandbox).toBe("none");
     expect(config.promptDir).toBe(".sandcastle/prompts");
@@ -109,14 +109,14 @@ describe("loadConfig", () => {
   });
 
   it("falls back to ANTHROPIC_MODEL when SANDCASTLE_MODEL is not set", async () => {
-    process.env["ANTHROPIC_MODEL"] = "claude-opus-4-6";
+    process.env["ANTHROPIC_MODEL"] = "claude-opus-4-7";
     const config = await loadConfig({ cwd: tempDir });
-    expect(config.model).toBe("claude-opus-4-6");
+    expect(config.model).toBe("claude-opus-4-7");
   });
 
   it("prefers SANDCASTLE_MODEL over ANTHROPIC_MODEL", async () => {
     process.env["SANDCASTLE_MODEL"] = "claude-haiku";
-    process.env["ANTHROPIC_MODEL"] = "claude-opus-4-6";
+    process.env["ANTHROPIC_MODEL"] = "claude-opus-4-7";
     const config = await loadConfig({ cwd: tempDir });
     expect(config.model).toBe("claude-haiku");
   });
