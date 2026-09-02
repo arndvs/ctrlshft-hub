@@ -50,7 +50,13 @@ jobs:
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
           git checkout -b "$branch"
-          jq --arg sha "$LATEST_SHA" '.lastPinnedSha = $sha' .sandcastle/hub-version.json > tmp.json && mv tmp.json .sandcastle/hub-version.json
+          # detectedAt = when the bot detected the drift (branch creation).
+          # reviewedAt is intentionally NOT written here — it is derived from
+          # the merge-commit date of this PR by scan-consumers.sh, so it can
+          # never claim a human signed off before the merge happened.
+          jq --arg sha "$LATEST_SHA" --arg now "$(date +%Y-%m-%d)" \
+            '.lastPinnedSha = $sha | .detectedAt = $now' \
+            .sandcastle/hub-version.json > tmp.json && mv tmp.json .sandcastle/hub-version.json
           git add .sandcastle/hub-version.json
           git commit -m "chore(sandcastle): pin hub to $LATEST_SHA"
           git push origin "$branch"
