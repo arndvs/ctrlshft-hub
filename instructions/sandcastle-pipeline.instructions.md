@@ -52,6 +52,8 @@ the review verdict (`agent:fix` / `agent:merge` / `agent:update-branch`).
 | `lens:assets` | `agent-code-health.yml` | — (lens marker) | — |
 | `shft` | `defer-to-issue` (engine) | — (review-metadata marker) | — |
 | `hitl` | `defer-to-issue` (engine) | — (review-metadata marker) | — |
+| `agent:prep` | `to-issue` dispatch (arndvs job scout) | `agent-job-prep.yml` (cmd-private) | — (prep marker) |
+| `agent:prep-done` | `agent-job-prep.yml` (cmd-private) | — (completion marker) | — |
 
 There is no separate planning-state label — `agent-plan-issue.yml` promotes
 `agent:review` → `agent:implement` directly.

@@ -2,7 +2,7 @@
   {
     "name": "Sandcastle",
     "color": "7057ff",
-    "description": "Entry point \u2014 triggers agent review pipeline"
+    "description": "Entry point — triggers agent review pipeline"
   },
   {
     "name": "agent:review",
@@ -117,7 +117,7 @@
   {
     "name": "hitl",
     "color": "d4c5f9",
-    "description": "Human-in-the-loop \u2014 requires human review or decision"
+    "description": "Human-in-the-loop — requires human review or decision"
   },
   {
     "name": "repo-hygiene",
@@ -127,37 +127,37 @@
   {
     "name": "phase-0",
     "color": "c5def5",
-    "description": "Repo-hygiene phase 0 \u2014 safety net"
+    "description": "Repo-hygiene phase 0 — safety net"
   },
   {
     "name": "phase-1",
     "color": "c5def5",
-    "description": "Repo-hygiene phase 1 \u2014 structure/layout"
+    "description": "Repo-hygiene phase 1 — structure/layout"
   },
   {
     "name": "phase-2",
     "color": "c5def5",
-    "description": "Repo-hygiene phase 2 \u2014 DRY extraction"
+    "description": "Repo-hygiene phase 2 — DRY extraction"
   },
   {
     "name": "phase-3",
     "color": "c5def5",
-    "description": "Repo-hygiene phase 3 \u2014 styling/typing"
+    "description": "Repo-hygiene phase 3 — styling/typing"
   },
   {
     "name": "phase-4",
     "color": "c5def5",
-    "description": "Repo-hygiene phase 4 \u2014 content/data"
+    "description": "Repo-hygiene phase 4 — content/data"
   },
   {
     "name": "phase-5",
     "color": "c5def5",
-    "description": "Repo-hygiene phase 5 \u2014 ratchet"
+    "description": "Repo-hygiene phase 5 — ratchet"
   },
   {
     "name": "agent:prep",
     "color": "0e8a16",
-    "description": "Job follow-up prep task \u2014 research company + draft outreach, never apply"
+    "description": "Job follow-up prep task — research company + draft outreach, never apply"
   },
   {
     "name": "agent:prep-done",
