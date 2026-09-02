@@ -128,6 +128,7 @@ describe("loadConfig", () => {
 
     const excluded = resolveExcludedPaths(config);
     expect(excluded).toContain(".sandcastle");
+    expect(excluded).toContain("sandcastle-hub");
     expect(excluded).toContain(".github/workflows/agent-*");
     expect(excluded).toContain(".refactor");
   });

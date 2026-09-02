@@ -127,6 +127,7 @@ describe("configPromptArgs", () => {
       BASE_BRANCH: "dev",
       OUT_OF_SCOPE_PATHS: [
         ".sandcastle",
+        "sandcastle-hub",
         ".github/actions/sandcastle-setup",
         ".github/actions/sandcastle-teardown",
         ".github/workflows/agent-*",
