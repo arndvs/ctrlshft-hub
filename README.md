@@ -31,7 +31,7 @@ graph LR
 - **`actions/agent-run/`** — the single composite action consumers call. It checks out the hub at the pinned ref, installs engine deps, runs the engine against the consumer workspace (`--repo`), and summarizes the run.
 - **`.github/workflows/`** — engine CI (tests on every PR) and reusable lifecycle workflows.
 
-> **Producer:** the engine originates in [`arndvs/ctrlshft`](https://github.com/arndvs/ctrlshft) (`shft/engine`), which is published here. Architecture and decision records live in that repo's `docs/` (`sandcastle-hub-architecture.md`, `ADR-008`).
+> **Producer:** the engine originates in [`arndvs/ctrlshft`](https://github.com/arndvs/ctrlshft) (`shft/engine`), which is published here. Architecture and decision records live in that repo's `docs/` (`ADR-008-ctrlshft-hub.md`).
 
 ## Consumer usage
 

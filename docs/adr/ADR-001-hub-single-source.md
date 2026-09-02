@@ -29,5 +29,5 @@ The engine layout constraint: `engine/` and `templates/` MUST be siblings
 - The producer (ctrlshft) and this hub both dogfood the model.
 - Engine-PRDs are filed here, where the engine lives.
 
-See `arndvs/ctrlshft` `docs/adr/ADR-008-sandcastle-hub.md` for the full
+See `arndvs/ctrlshft` `docs/adr/ADR-008-ctrlshft-hub.md` for the full
 decision record.

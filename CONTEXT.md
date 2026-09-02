@@ -18,7 +18,7 @@ Nothing is vendored into consumers; nothing drifts.
 
 The engine originates in `arndvs/ctrlshft` (`shft/engine`), which is published
 here. Architecture and decision records live in that repo's `docs/`
-(`sandcastle-hub-architecture.md`, `ADR-008`).
+(`ADR-008-ctrlshft-hub.md`).
 
 ## Self-dogfood
 
