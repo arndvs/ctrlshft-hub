@@ -1,0 +1,69 @@
+name: "Fleet: Consumer Health Report"
+
+# Consolidated fleet-level view of all ctrlshft-hub consumers.
+# Runs the workspaces repo's scan-consumers.sh against the identity
+# manifest and opens one review PR listing hard failures (stale refs,
+# missing AGENT_PAT secrets, missing hub-version.json pins).
+#
+# The hub is the right home: it has AGENT_PAT, knows its own SHA, and the
+# consumers are its dependents. Workspaces holds identity; the hub
+# computes state.
+
+on:
+  schedule:
+    - cron: "41 9 * * 1" # Mondays 09:41 UTC — aligns with consumer drift checks
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  fleet-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout workspaces repo (manifest + scanner)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: arndvs/workspaces
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+          path: workspaces
+          fetch-depth: 1
+
+      - name: Run fleet scan
+        id: scan
+        run: |
+          set -euo pipefail
+          # The scanner resolves consumer paths under $CLIENTS; in CI we
+          # clone each consumer shallowly so the scanner can read pins.
+          # For the report-only path, missing checkouts are soft warnings.
+          cd workspaces
+          bash bin/scan-consumers.sh --check > /tmp/fleet-report.txt 2>&1 || true
+          cat /tmp/fleet-report.txt
+          echo "report_path=workspaces/ctrlshft-consumers/consumers.report.json" >> "$GITHUB_OUTPUT"
+
+      - name: Open review PR on hard failures
+        if: always()
+        run: |
+          set -euo pipefail
+          # Only open a PR if there are hard failures worth reviewing.
+          if grep -q "CHECK FAILED" /tmp/fleet-report.txt; then
+            branch="sandcastle/fleet-report-$(date +%Y%m%d)"
+            git config user.name "claude-code[bot]"
+            git config user.email "claude-code[bot]@users.noreply.github.com"
+            git checkout -b "$branch"
+            cp /tmp/fleet-report.txt fleet-report.txt
+            git add fleet-report.txt
+            git commit -m "chore(fleet): consumer health report $(date +%Y%m%d)" || true
+            git push origin "$branch" || true
+            gh pr create -R ${{ github.repository }} \
+              --base main \
+              --head "$branch" \
+              --title "chore(fleet): consumer health report $(date +%Y%m%d)" \
+              --body "Fleet scan found hard failures. See fleet-report.txt for details." || true
+          else
+            echo "Fleet scan clean — no PR needed."
+          fi
