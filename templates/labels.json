@@ -153,5 +153,15 @@
     "name": "phase-5",
     "color": "c5def5",
     "description": "Repo-hygiene phase 5 — ratchet"
+  },
+  {
+    "name": "agent:prep",
+    "color": "0e8a16",
+    "description": "Job follow-up prep task — research company + draft outreach, never apply"
+  },
+  {
+    "name": "agent:prep-done",
+    "color": "c5def5",
+    "description": "Job follow-up prep completed by the agent"
   }
 ]

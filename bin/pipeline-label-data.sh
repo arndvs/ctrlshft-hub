@@ -34,6 +34,8 @@ declare -A LABEL_APPLIES_TO=(
   ['phase-3']='issue'
   ['phase-4']='issue'
   ['phase-5']='issue'
+  ['agent:prep']='issue'
+  ['agent:prep-done']='issue'
 )
 
 MUTUAL_EXCLUSIONS=(

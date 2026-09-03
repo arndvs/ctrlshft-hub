@@ -204,6 +204,18 @@ export const LABELS: Record<string, LabelDef> = {
     description: "Repo-hygiene phase 5 — ratchet",
     stateMarker: true,
   },
+  "agent:prep": {
+    appliesTo: ["issue"],
+    color: "0e8a16",
+    description: "Job follow-up prep task — research company + draft outreach, never apply",
+    stateMarker: true,
+  },
+  "agent:prep-done": {
+    appliesTo: ["issue"],
+    color: "c5def5",
+    description: "Job follow-up prep completed by the agent",
+    stateMarker: true,
+  },
 };
 
 // ── Mutual exclusions ────────────────────────────────────────────────────────
