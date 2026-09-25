@@ -25,7 +25,9 @@ permissions:
 jobs:
   code-health-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 90m: the audit runs multiple lenses and the Sep 2026 hub run hit 59m15s
+    # against the old 60m cap, timing out with the session-resume retry loop.
+    timeout-minutes: 90
     concurrency:
       group: agent-code-health-audit
       cancel-in-progress: false
