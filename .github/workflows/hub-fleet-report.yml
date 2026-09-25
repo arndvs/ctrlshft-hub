@@ -37,11 +37,12 @@ jobs:
         id: scan
         run: |
           set -euo pipefail
-          # The scanner resolves consumer paths under $CLIENTS; in CI we
-          # clone each consumer shallowly so the scanner can read pins.
-          # For the report-only path, missing checkouts are soft warnings.
+          # --ci resolves every consumer's state via the GitHub API (default
+          # branch, hub-version.json, AGENT_PAT presence) so the runner does
+          # not need local clones of the consumers. The workspaces checkout
+          # only provides the manifest + scanner.
           cd workspaces
-          bash bin/scan-consumers.sh --check > /tmp/fleet-report.txt 2>&1 || true
+          bash bin/scan-consumers.sh --ci --check > /tmp/fleet-report.txt 2>&1 || true
           cat /tmp/fleet-report.txt
           echo "report_path=workspaces/ctrlshft-consumers/consumers.report.json" >> "$GITHUB_OUTPUT"
 
