@@ -53,7 +53,9 @@ describe("waitForSessionFile", () => {
   it("uses default timeout and interval when not provided", async () => {
     mockExistsSync.mockReturnValue(false);
     const promise = waitForSessionFile("sess-1");
-    await vi.advanceTimersByTimeAsync(35_000);
+    // Default timeout is 120s (raised from 30s — the async session flush on
+    // fresh runners needs more headroom than 30s).
+    await vi.advanceTimersByTimeAsync(125_000);
     const result = await promise;
     expect(result).toBe(false);
   });

@@ -5,7 +5,7 @@ import { hostSessionStore } from "@ai-hero/sandcastle";
  * Options for {@link waitForSessionFile}.
  */
 export interface WaitForSessionFileOptions {
-  /** How long to poll for the session file before giving up. Default: 30s. */
+  /** How long to poll for the session file before giving up. Default: 120s. */
   readonly timeoutMs?: number;
   /** How often to check for the file. Default: 500ms. */
   readonly intervalMs?: number;
@@ -29,7 +29,12 @@ export async function waitForSessionFile(
   sessionId: string,
   options: WaitForSessionFileOptions = {}
 ): Promise<boolean> {
-  const { timeoutMs = 30_000, intervalMs = 500 } = options;
+  // 120s default: the produce phase can run 10+ minutes and the session JSONL
+  // is flushed asynchronously by Claude Code (noSandbox has no deterministic
+  // transferSession). 30s was too short on fresh CI runners, so every retry
+  // fell back to a fresh session and re-did the produce work — doubling the
+  // Actions minutes burn and causing agent workflows to fail.
+  const { timeoutMs = 120_000, intervalMs = 500 } = options;
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
