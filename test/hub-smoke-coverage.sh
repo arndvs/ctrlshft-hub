@@ -101,6 +101,46 @@ if [[ -n "$referenced_reusables" ]]; then
     done <<<"$referenced_reusables"
 fi
 
+# ── 3b. Template `with:` inputs match the referenced reusable's declared
+#        inputs. A stray input (e.g. `base-branch` when the reusable declares
+#        `base-ref`) is rejected by GitHub at parse time — surfacing as a
+#        startup_failure in consumers. This check closes that gap.
+input_mismatches=()
+for wf_file in "${agent_templates[@]}"; do
+    wf_path="$ROOT/templates/workflows/$wf_file"
+    # Find reusable references in this template: `uses: <owner>/<repo>/.github/workflows/reusable-X.yml@ref`
+    while read -r uses_line; do
+        [[ -n "$uses_line" ]] || continue
+        rwf="$(grep -oE "reusable-[a-z-]+\.yml" <<<"$uses_line" | head -1)"
+        [[ -n "$rwf" ]] || continue
+        rwf_path="$ROOT/.github/workflows/$rwf"
+        [[ -f "$rwf_path" ]] || continue
+
+        # Declared inputs: keys under `inputs:` in the workflow_call block.
+        declared="$(sed -n '/workflow_call:/,/^[a-z]/p' "$rwf_path" \
+            | grep -E '^[[:space:]]{6}[a-z0-9-]+:' \
+            | sed 's/^[[:space:]]*//;s/:.*//' || true)"
+
+        # Passed inputs: keys under `with:` in the template's reusable call.
+        passed="$(sed -n "/uses:.*$rwf/,/secrets:/p" "$wf_path" \
+            | grep -E '^[[:space:]]{6}[a-z0-9-]+:' \
+            | sed 's/^[[:space:]]*//;s/:.*//' || true)"
+
+        for input in $passed; do
+            if ! grep -qE "(^|[[:space:]])$input([[:space:]]|$)" <<<"$declared"; then
+                input_mismatches+=("$wf_file passes undeclared input '$input' to $rwf")
+            fi
+        done
+    done < <(grep -E "uses: .*reusable-[a-z-]+\.yml" "$wf_path" || true)
+done
+if [[ ${#input_mismatches[@]} -eq 0 ]]; then
+    _record_pass "template with: inputs match reusable declared inputs"
+else
+    for m in "${input_mismatches[@]}"; do
+        _record_fail "template with: inputs match reusable declared inputs" "$m"
+    done
+fi
+
 # ── 4. Hub agent-run composite action exists ───────────────────────────
 if [[ -f "$ROOT/actions/agent-run/action.yml" ]]; then
     _record_pass "agent-run composite action exists"
