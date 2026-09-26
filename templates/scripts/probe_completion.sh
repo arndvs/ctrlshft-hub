@@ -3,9 +3,11 @@
 # probe_completion.sh — probe a single model for a real completion through the
 # proxy and classify the outcome as ok / degraded / fail.
 #
-# Shared by .github/workflows/proxy-canary.yml. Encapsulates the retry loop,
-# curl construction, JSON parsing, SSE detection, and hard-error vs
-# empty-content classification.
+# Shared by .github/workflows/proxy-canary.yml and model-health.yml. Encapsulates
+# the retry loop, curl construction, and outcome folding. Response classification
+# (SSE/JSON content extraction, hard-error mapping) is delegated to
+# probe_parser.py — the single wired source of truth (refs #166). Consumers must
+# fetch BOTH files from the hub into the same directory.
 #
 # The script ALWAYS exits 0 and reports the outcome via output variables, so a
 # caller can distinguish "the probe says fail" (status=fail) from "the probe
@@ -21,6 +23,7 @@
 #   PROBE_MAX_TOKENS      optional  max_tokens in the request           (default 64)
 #   PROBE_CURL_TIMEOUT    optional  curl --max-time seconds per attempt (default 60)
 #   PROBE_RESPONSE_FILE   optional  where the response body is written  (default: mktemp)
+#   PROBE_PARSER         optional  path to probe_parser.py (default: sibling of this script)
 #
 # Outputs (printed to stdout as key=value lines, and appended to $GITHUB_OUTPUT
 # when that variable is set):
@@ -121,6 +124,17 @@ got=no
 hard=""
 empty_seen=no
 
+# Locate the probe parser — the single source of truth for response
+# classification (refs #166). Consumers fetch both files from the hub into the
+# same directory; PROBE_PARSER overrides for local runs.
+PROBE_PARSER="${PROBE_PARSER:-$(dirname "${BASH_SOURCE[0]}")/probe_parser.py}"
+if [ ! -f "$PROBE_PARSER" ]; then
+  status="fail"
+  detail="probe_parser.py not found next to probe_completion.sh (fetch both from the hub)"
+  emit
+  exit 0
+fi
+
 # Build the request body with python3 so a model/prompt containing quotes,
 # backslashes, or newlines cannot produce invalid JSON.
 if ! payload=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"max_tokens":int(sys.argv[2]),"messages":[{"role":"user","content":sys.argv[3]}]}))' \
@@ -141,56 +155,33 @@ for ((i = 1; i <= retries; i++)); do
     -d "$payload" \
     || true)
   [ -n "$http_code" ] || http_code="000"
-  etype=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('error',{}).get('type',''))" < "$body_file" 2>/dev/null || true)
-  case "$http_code" in
-    200)
-      # Some proxy configs (litellm_params.stream:true) force SSE on all
-      # completions — even non-streaming probe requests. An SSE body starts
-      # with "event:", "data:", or bare ":" (keep-alive comment) lines and is
-      # not valid JSON; parse content_block_delta events instead of
-      # d.get('content'). Non-SSE path is unchanged (backwards-compatible).
-      if head -c 128 "$body_file" | grep -qE '^(event:|data:|:)'; then
-        has=$(python3 - "$body_file" <<'PY' 2>/dev/null || echo no
-import json, sys
-rv = 'no'
-for l in open(sys.argv[1]):
-    if l.startswith('data:') and l.rstrip('\r\n') not in ('data: [DONE]', 'data:[DONE]'):
-        raw = l[5:].lstrip(' ')
-        try:
-            d = json.loads(raw)
-            if d.get('type') == 'content_block_delta' and d.get('delta', {}).get('text'):
-                rv = 'yes'
-                break
-        except Exception:
-            pass
-print(rv)
-PY
-)
-        [ "$has" = "yes" ] && log "completion attempt $i/$retries: 200 SSE with content ✓" \
-                           || log "completion attempt $i/$retries: 200 SSE — empty content"
-      else
-        # Non-streaming JSON path — a non-JSON, non-SSE 200 is a hard proxy bug.
-        if ! python3 -c "import json,sys; json.load(sys.stdin)" < "$body_file" 2>/dev/null; then
-          hard="200 but response body was not valid JSON — proxy/upstream serving malformed completions"
-          break
-        fi
-        has=$(python3 -c "import json,sys; d=json.load(sys.stdin); print('yes' if d.get('content') else 'no')" \
-            < "$body_file" 2>/dev/null || echo no)
-        [ "$has" = "yes" ] && log "completion attempt $i/$retries: 200 JSON with content ✓" \
-                           || log "completion attempt $i/$retries: 200 JSON — empty content"
-      fi
-      if [ "$has" = "yes" ]; then
-        got=yes
-        break
-      fi
-      empty_seen=yes
-      ;;
-    401 | 403) hard="auth error HTTP $http_code${etype:+ (type=$etype)} — master key likely wrong/mismatched"; break ;;
-    400)       hard="HTTP 400${etype:+ (type=$etype)} — e.g. no_db_connection / bad request"; break ;;
-    000)       hard="connection failed — proxy unreachable"; break ;;
-    5*)        hard="upstream HTTP $http_code${etype:+ (type=$etype)}"; break ;;
-    *)         log "completion attempt $i/$retries: HTTP $http_code — retrying" ;;
-  esac
+
+  # Delegate per-attempt classification to probe_parser.py — the single wired
+  # source of truth for SSE/JSON content extraction and hard-error mapping
+  # (refs #166). Its CLI contract: `probe_parser.py <http_code> < <body_file>`
+  # prints status=yes|no, format=, hard=, and detail= (when present).
+  parse_out=$(python3 "$PROBE_PARSER" "$http_code" < "$body_file" 2>/dev/null || true)
+  has=$(printf '%s\n' "$parse_out" | sed -n 's/^status=//p')
+  is_hard=$(printf '%s\n' "$parse_out" | sed -n 's/^hard=//p')
+  parse_detail=$(printf '%s\n' "$parse_out" | sed -n 's/^detail=//p')
+  [ -n "$has" ] || has="no"
+  [ -n "$is_hard" ] || is_hard="false"
+
+  if [ "$is_hard" = "true" ]; then
+    hard="${parse_detail:-hard error HTTP $http_code}"
+    break
+  fi
+  if [ "$has" = "yes" ]; then
+    got=yes
+    log "completion attempt $i/$retries: HTTP $http_code with content ✓"
+    break
+  fi
+  if [ "$http_code" = "200" ]; then
+    empty_seen=yes
+    log "completion attempt $i/$retries: HTTP 200 — empty content"
+  else
+    log "completion attempt $i/$retries: HTTP $http_code — retrying"
+  fi
   if [ "$i" -lt "$retries" ]; then
     sleep "$interval"
   fi
