@@ -3,11 +3,6 @@ export interface DiffLineAnchors {
   RIGHT: Set<number>;
 }
 
-export function parseDiffLines(diff: string): Map<string, Set<number>> {
-  const anchors = parseDiffLineAnchors(diff);
-  return new Map([...anchors.entries()].map(([file, sides]) => [file, sides.RIGHT]));
-}
-
 export function parseDiffLineAnchors(diff: string): Map<string, DiffLineAnchors> {
   const anchors = new Map<string, DiffLineAnchors>();
   const lines = diff.split("\n");
