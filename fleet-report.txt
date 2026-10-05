@@ -1,0 +1,37 @@
+rise-awake             consumer     hub      ?      unknown      ed9e895    
+push                   consumer     hub      ?      unknown      ed9e895    
+cast                   consumer     hub      ?      unknown      10274b8    
+cast-be                consumer     hub      ?      unknown      10274b8    
+aligned                consumer     hub      ?      unknown      ed9e895    
+arndvs                 consumer     hub      ?      unknown      2fd0a46    
+alignsd                consumer     hub      ?      unknown      10274b8    
+cmd-public             consumer     hub      ?      unknown      2fd0a46    
+launch                 consumer     hub      ?      unknown      ed9e895    
+llm-gateway            runtime      hub      ?      unknown      2fd0a46    
+riseawake.com          consumer     hub      ?      unknown      ed9e895    
+ctrlshft-public        producer     hub      ?      unknown      8a0a288    
+ctrlshft-hub           hub          n/a      ?      ?            none       
+mcrdse-ops             consumer     hub      ?      unknown      none       
+mcrdse-ops             consumer     hub      ?      unknown      none       
+mcrdse-command         consumer     vendored-legacy ?      ?            none       
+mcrdse-content-ship    consumer     vendored-legacy ?      ?            none       
+mcrdsemovement-site    consumer     vendored-legacy ?      ?            none       
+mcrdse-outreach        consumer     vendored-legacy ?      ?            none       
+mcrdse-site            consumer     vendored-legacy ?      ?            none       
+mcrdse-super-market    consumer     vendored-legacy ?      ?            none       
+agentic-nlq            unclassified none     ?      ?            none       
+aligned-academy        unclassified none     ?      ?            none       
+aligned-academy-backup unclassified none     ?      ?            none       
+aligned-academy-old    unclassified none     ?      ?            none       
+align-wellness         unclassified none     ?      ?            none       
+arndvs-py-api          unclassified none     ?      ?            none       
+foreword               unclassified none     ?      ?            none       
+preact-chatbot         unclassified none     ?      ?            none       
+rise-co                unclassified none     ?      ?            none       
+scorpion-percussion-app unclassified none     ?      ?            none       
+the-remote             unclassified none     ?      ?            none       
+
+Report: /home/runner/work/ctrlshft-hub/ctrlshft-hub/ctrlshft-consumers/consumers.report.json
+Hub latest: e042bd3
+Hard failures: 2 | Soft warnings: 0
+CHECK FAILED — 2 hard failure(s)
