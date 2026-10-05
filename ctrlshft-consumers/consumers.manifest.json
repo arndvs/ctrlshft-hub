@@ -147,7 +147,9 @@
       "status": "active",
       "owner": "mcrdseorg",
       "id": "mcrdse-ops",
-      "repo": "mcrdseorg/mcrdse-ops"
+      "repo": "mcrdseorg/mcrdse-ops",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/mcrdse/mcrdse-ops",
@@ -156,9 +158,10 @@
       "model": "hub",
       "status": "stale-checkout",
       "owner": "mcrdseorg",
-      "note": "Duplicate checkout of mcrdse/mcrdse-ops.git — stale (08-09) vs canonical top-level (08-21). Same repo, two checkouts.",
+      "note": "Duplicate checkout of mcrdse/mcrdse-ops.git — stale (08-09) vs canonical top-level (08-21). Same repo, two checkouts. No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks.",
       "id": "mcrdse__mcrdse-ops",
-      "repo": "mcrdseorg/mcrdse-ops"
+      "repo": "mcrdseorg/mcrdse-ops",
+      "maintenance": "dormant"
     },
     {
       "path": "../clients/mcrdse/mcrdse-command",
@@ -168,7 +171,9 @@
       "status": "legacy",
       "owner": "mcrdseorg",
       "id": "mcrdse__mcrdse-command",
-      "repo": "mcrdseorg/mcrdse-command"
+      "repo": "mcrdseorg/mcrdse-command",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/mcrdse/MCRDSE-Content-Ship",
@@ -178,7 +183,9 @@
       "status": "legacy",
       "owner": "mcrdseorg",
       "id": "mcrdse__MCRDSE-Content-Ship",
-      "repo": "mcrdseorg/MCRDSE-Content-Ship"
+      "repo": "mcrdseorg/MCRDSE-Content-Ship",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/mcrdse/mcrdsemovement-site",
@@ -188,7 +195,9 @@
       "status": "legacy",
       "owner": "mcrdseorg",
       "id": "mcrdse__mcrdsemovement-site",
-      "repo": "mcrdseorg/mcrdsemovement-site"
+      "repo": "mcrdseorg/mcrdsemovement-site",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/mcrdse/mcrdse-outreach",
@@ -198,7 +207,9 @@
       "status": "legacy",
       "owner": "mcrdseorg",
       "id": "mcrdse__mcrdse-outreach",
-      "repo": "mcrdseorg/mcrdse-outreach"
+      "repo": "mcrdseorg/mcrdse-outreach",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/mcrdse/mcrdse-site",
@@ -208,7 +219,9 @@
       "status": "legacy",
       "owner": "mcrdseorg",
       "id": "mcrdse__mcrdse-site",
-      "repo": "mcrdseorg/mcrdse-site"
+      "repo": "mcrdseorg/mcrdse-site",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/mcrdse/mcrdse-super-market",
@@ -218,7 +231,9 @@
       "status": "legacy",
       "owner": "mcrdseorg",
       "id": "mcrdse__mcrdse-super-market",
-      "repo": "mcrdseorg/mcrdse-super-market"
+      "repo": "mcrdseorg/mcrdse-super-market",
+      "maintenance": "dormant",
+      "note": "No longer maintained (2026-10-05) — kept for records, may be re-enabled later. Excluded from fleet health checks."
     },
     {
       "path": "../clients/agentic-nlq",

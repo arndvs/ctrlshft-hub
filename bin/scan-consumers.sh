@@ -32,6 +32,11 @@
 #   - pendingPin (working tree has a newer pin than default branch; local only)
 #   - unclassified repos (informational)
 #
+# Dormant entries (manifest `maintenance: "dormant"`):
+#   - identity is reported, but ALL health checks are skipped (no drift,
+#     secret, or pin checks). Use for repos no longer maintained that we keep
+#     for records and may re-enable later.
+#
 # Requires: jq, gh (for secret + hub-SHA checks), git.
 
 set -euo pipefail
@@ -108,6 +113,21 @@ while IFS= read -r repo_json; do
         --arg status "$status" \
         --arg repo "$repo_spec" \
         '{id:$id, name:$name, path:$path, role:$role, model:$model, status:$status, repo:$repo}')
+
+    # ── Dormant entries: report identity, skip health checks ──────────────────
+    # A repo marked maintenance:dormant is no longer actively maintained. We
+    # keep its record (it may be re-enabled later) but do NOT run drift/secret/
+    # pin checks against it — those would emit noise for a repo we've parked.
+    maintenance=$(jq -r '.maintenance // "active"' <<<"$repo_json")
+    if [[ "$maintenance" == "dormant" ]]; then
+        entry=$(jq '. + {maintenance:"dormant", agentPat:"n/a", pinnedSha:"", reviewLag:"", staleSandcastleHubRef:false, pendingPin:false}' <<<"$entry")
+        REPORT_JSON=$(jq --argjson e "$entry" '.repos += [$e]' <<<"$REPORT_JSON")
+        if [[ "$JSON_ONLY" != true ]]; then
+            printf "%-22s %-12s %-8s %-6s %-12s %-10s %s\n" \
+                "$name" "$role" "$model" "-" "dormant" "-" "DORMANT"
+        fi
+        continue
+    fi
 
     # ── CI mode: resolve repo state via GitHub API ────────────────────────────
     # CI runners only have the workspaces repo checked out, not the consumers.
