@@ -20,6 +20,10 @@ This root is the **vendor source** — one-way copy out. See
 - `actions/agent-run/` — the single composite action consumers call
 - `.github/workflows/reusable-*.yml` — lifecycle workflows consumers call
 - `.github/workflows/engine-ci.yml` + `test/hub-smoke-coverage.sh` (QA gate)
+- `bin/scan-consumers.sh` + `ctrlshft-consumers/consumers.manifest.json` —
+  the fleet scanner and consumer identity manifest, consumed by
+  `.github/workflows/hub-fleet-report.yml`. Self-contained: the workflow
+  checks out only this repo (no private cross-repo dependency).
 
 ## What it does NOT own (never)
 
@@ -34,7 +38,7 @@ This root is the **vendor source** — one-way copy out. See
 - Layout constraint: `engine/` and `templates/` MUST be siblings
   (`resolveDefaultTemplatesDir` walks `../../templates/prompts`).
 - Branch flow: linear commits directly to `main` (no PR for routine engine work).
-- Before merging: `bash test/hub-smoke-coverage.sh` (37/37) + `pnpm test` in `engine/`.
+- Before merging: `bash test/hub-smoke-coverage.sh` (46/46) + `pnpm test` in `engine/`.
 - After a template change: run `bash ~/dotfiles/bin/sync-hub-templates.sh` to
   mirror to the producer, then commit in the producer.
 

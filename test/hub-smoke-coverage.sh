@@ -183,6 +183,44 @@ else
     _record_fail "no old-model tokens in any template" "$old_token_hits file(s) still reference the vendored model"
 fi
 
+# ── 7. Fleet report is self-contained ──────────────────────────────────
+# The fleet-report workflow must not depend on a private cross-repo checkout;
+# the scanner + manifest live in this repo.
+fleet_wf="$ROOT/.github/workflows/hub-fleet-report.yml"
+if [[ -f "$fleet_wf" ]]; then
+    _record_pass "hub-fleet-report.yml exists"
+    if grep -q "repository: arndvs/workspaces" "$fleet_wf"; then
+        _record_fail "fleet report is self-contained" "still checks out arndvs/workspaces"
+    else
+        _record_pass "fleet report is self-contained (no private-repo checkout)"
+    fi
+else
+    _record_fail "hub-fleet-report.yml exists" ".github/workflows/hub-fleet-report.yml missing"
+fi
+
+if [[ -f "$ROOT/bin/scan-consumers.sh" ]]; then
+    _record_pass "vendored scan-consumers.sh exists"
+    if [[ -x "$ROOT/bin/scan-consumers.sh" ]]; then
+        _record_pass "vendored scan-consumers.sh is executable"
+    else
+        _record_fail "vendored scan-consumers.sh is executable" "not executable"
+    fi
+else
+    _record_fail "vendored scan-consumers.sh exists" "bin/scan-consumers.sh missing"
+fi
+
+manifest="$ROOT/ctrlshft-consumers/consumers.manifest.json"
+if [[ -f "$manifest" ]]; then
+    _record_pass "vendored consumers.manifest.json exists"
+    if jq -e '.repos | length > 0' "$manifest" >/dev/null 2>&1; then
+        _record_pass "vendored manifest is valid JSON with repos"
+    else
+        _record_fail "vendored manifest is valid JSON with repos" "invalid JSON or empty repos"
+    fi
+else
+    _record_fail "vendored consumers.manifest.json exists" "ctrlshft-consumers/consumers.manifest.json missing"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 
 printf "\n  \033[32m%d passed\033[0m  \033[31m%d failed\033[0m\n" "$PASS" "$FAIL"

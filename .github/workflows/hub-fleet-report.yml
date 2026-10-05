@@ -1,13 +1,13 @@
 name: "Fleet: Consumer Health Report"
 
 # Consolidated fleet-level view of all ctrlshft-hub consumers.
-# Runs the workspaces repo's scan-consumers.sh against the identity
+# Runs the hub's own bin/scan-consumers.sh against the vendored identity
 # manifest and opens one review PR listing hard failures (stale refs,
 # missing AGENT_PAT secrets, missing hub-version.json pins).
 #
-# The hub is the right home: it has AGENT_PAT, knows its own SHA, and the
-# consumers are its dependents. Workspaces holds identity; the hub
-# computes state.
+# Self-contained: the scanner + manifest live in this repo, so the workflow
+# needs no private-repo checkout and no cross-repo token grant. The hub has
+# AGENT_PAT, knows its own SHA, and the consumers are its dependents.
 
 on:
   schedule:
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -25,12 +25,10 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout workspaces repo (manifest + scanner)
+      - name: Checkout hub (scanner + manifest)
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          repository: arndvs/workspaces
           token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
-          path: workspaces
           fetch-depth: 1
 
       - name: Run fleet scan
@@ -39,12 +37,10 @@ jobs:
           set -euo pipefail
           # --ci resolves every consumer's state via the GitHub API (default
           # branch, hub-version.json, AGENT_PAT presence) so the runner does
-          # not need local clones of the consumers. The workspaces checkout
-          # only provides the manifest + scanner.
-          cd workspaces
+          # not need local clones of the consumers.
           bash bin/scan-consumers.sh --ci --check > /tmp/fleet-report.txt 2>&1 || true
           cat /tmp/fleet-report.txt
-          echo "report_path=workspaces/ctrlshft-consumers/consumers.report.json" >> "$GITHUB_OUTPUT"
+          echo "report_path=ctrlshft-consumers/consumers.report.json" >> "$GITHUB_OUTPUT"
 
       - name: Open review PR on hard failures
         if: always()
