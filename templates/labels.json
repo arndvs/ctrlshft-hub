@@ -10,6 +10,11 @@
     "description": "Agent is reviewing the issue or PR"
   },
   {
+    "name": "agent:plan",
+    "color": "006b75",
+    "description": "Agent should break this PRD issue into sub-issues"
+  },
+  {
     "name": "agent:implement",
     "color": "e4e669",
     "description": "Agent is implementing the issue"

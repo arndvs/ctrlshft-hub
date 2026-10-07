@@ -37,6 +37,11 @@ export const LABELS: Record<string, LabelDef> = {
     color: "0075ca",
     description: "Agent is reviewing the issue or PR",
   },
+  "agent:plan": {
+    appliesTo: ["issue"],
+    color: "006b75",
+    description: "Agent should break this PRD issue into sub-issues",
+  },
   "agent:implement": {
     appliesTo: ["issue"],
     color: "e4e669",
@@ -244,6 +249,9 @@ export const TRANSITIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   // Issue happy path
   ["Sandcastle", new Set(["agent:review"])],
   ["agent:review", new Set(["agent:implement"])],
+  // PRD breakdown — the plan workflow adds only the agent:in-progress state
+  // marker, so no follow-on pipeline label is declared here.
+  ["agent:plan", new Set([])],
   [
     "agent:implement",
     new Set(["agent:pr-open", "agent:implement-prd"]),

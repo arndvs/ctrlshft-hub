@@ -191,6 +191,17 @@ describe("pipeline-states", () => {
       const result = validateTransition([], { add: ["Sandcastle"] }, "pr");
       expect(result.valid).toBe(false);
     });
+
+    it("accepts agent:plan on an issue", () => {
+      const result = validateTransition([], { add: ["agent:plan"] }, "issue");
+      expect(result.valid).toBe(true);
+    });
+
+    it("rejects agent:plan on a PR", () => {
+      const result = validateTransition([], { add: ["agent:plan"] }, "pr");
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain("cannot be applied to pr");
+    });
   });
 
   describe("mutual exclusions", () => {
@@ -313,6 +324,27 @@ describe("pipeline-states", () => {
         "agent:queued",
       );
       expect(result.valid).toBe(true);
+    });
+
+    it("accepts agent:plan → agent:in-progress (state marker only)", () => {
+      const result = validateTransition(
+        ["agent:plan"],
+        { remove: ["agent:plan"], add: ["agent:in-progress"] },
+        "issue",
+        "agent:plan",
+      );
+      expect(result.valid).toBe(true);
+    });
+
+    it("rejects agent:plan → agent:implement (plan declares no follow-on label)", () => {
+      const result = validateTransition(
+        ["agent:plan"],
+        { remove: ["agent:plan"], add: ["agent:implement"] },
+        "issue",
+        "agent:plan",
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain("not declared");
     });
 
     it("accepts agent:implement-prd self-loop", () => {
