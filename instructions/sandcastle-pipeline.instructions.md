@@ -23,6 +23,7 @@ the review verdict (`agent:fix` / `agent:merge` / `agent:update-branch`).
 |-------|------------|----------|--------------|
 | `Sandcastle` | **Human** (start gate) | `agent-review-issue.yml` | `agent:review` |
 | `agent:review` | `agent-review-issue.yml` *(AGENT_PAT)* | `agent-plan-issue.yml` | `agent:implement` |
+| `agent:plan` | **Human** / skills (PRD issue) | `agent-plan-issue.yml` | breaks the PRD into sub-issues (no follow-on label) |
 | `agent:implement` | `agent-plan-issue.yml` / `agent-promote-queued.yml` / `agent-implement-prd.yml` *(AGENT_PAT)* | `agent-implement-issue.yml` | `agent:pr-open` / `agent:implement-prd` |
 | `agent:pr-open` | `agent-implement-issue.yml` | — (state marker on issue) | awaits **verdict gate** on the PR |
 | `agent:fix` | **Human** (verdict gate, on PR) | `agent-fix-pr-feedback.yml` | pushes fixes → PR re-reviewed |
@@ -55,8 +56,11 @@ the review verdict (`agent:fix` / `agent:merge` / `agent:update-branch`).
 | `agent:prep` | `to-issue` dispatch (arndvs job scout) | `agent-job-prep.yml` (cmd-private) | — (prep marker) |
 | `agent:prep-done` | `agent-job-prep.yml` (cmd-private) | — (completion marker) | — |
 
-There is no separate planning-state label — `agent-plan-issue.yml` promotes
-`agent:review` → `agent:implement` directly.
+`agent:plan` is the PRD-breakdown entry point: a human (or a skill) applies it to a
+PRD-style issue, `agent-plan-issue.yml` splits the issue into sub-issues, and the
+workflow adds only the `agent:in-progress` state marker — it declares no follow-on
+pipeline label. The `agent:review` → `agent:implement` path is separate and does not
+run the PRD breakdown.
 
 ## The two human gates
 

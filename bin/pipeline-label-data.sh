@@ -5,6 +5,7 @@
 declare -A LABEL_APPLIES_TO=(
   ['Sandcastle']='issue'
   ['agent:review']='issue,pr'
+  ['agent:plan']='issue'
   ['agent:implement']='issue'
   ['agent:pr-open']='issue'
   ['agent:fix']='pr'
