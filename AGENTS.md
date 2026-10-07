@@ -20,10 +20,9 @@ This root is the **vendor source** — one-way copy out. See
 - `actions/agent-run/` — the single composite action consumers call
 - `.github/workflows/reusable-*.yml` — lifecycle workflows consumers call
 - `.github/workflows/engine-ci.yml` + `test/hub-smoke-coverage.sh` (QA gate)
-- `bin/scan-consumers.sh` + `ctrlshft-consumers/consumers.manifest.json` —
-  the fleet scanner and consumer identity manifest, consumed by
-  `.github/workflows/hub-fleet-report.yml`. Self-contained: the workflow
-  checks out only this repo (no private cross-repo dependency).
+- Consumer fleet inventory and reporting are maintained outside this public
+  repository. Do not add private checkout paths or an operator-wide consumer
+  manifest here.
 
 ## What it does NOT own (never)
 
