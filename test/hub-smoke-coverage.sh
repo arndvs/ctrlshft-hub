@@ -183,42 +183,22 @@ else
     _record_fail "no old-model tokens in any template" "$old_token_hits file(s) still reference the vendored model"
 fi
 
-# ── 7. Fleet report is self-contained ──────────────────────────────────
-# The fleet-report workflow must not depend on a private cross-repo checkout;
-# the scanner + manifest live in this repo.
-fleet_wf="$ROOT/.github/workflows/hub-fleet-report.yml"
-if [[ -f "$fleet_wf" ]]; then
-    _record_pass "hub-fleet-report.yml exists"
-    if grep -q "repository: arndvs/workspaces" "$fleet_wf"; then
-        _record_fail "fleet report is self-contained" "still checks out arndvs/workspaces"
-    else
-        _record_pass "fleet report is self-contained (no private-repo checkout)"
+# ── 7. Private consumer inventory stays out of the public hub ──────────
+private_fleet_artifacts=(
+    "$ROOT/.github/workflows/hub-fleet-report.yml"
+    "$ROOT/bin/scan-consumers.sh"
+    "$ROOT/ctrlshft-consumers/consumers.manifest.json"
+)
+private_fleet_leaks=()
+for artifact in "${private_fleet_artifacts[@]}"; do
+    if [[ -e "$artifact" ]]; then
+        private_fleet_leaks+=("${artifact#"$ROOT/"}")
     fi
+done
+if [[ ${#private_fleet_leaks[@]} -eq 0 ]]; then
+    _record_pass "private consumer inventory and report are absent from the public hub"
 else
-    _record_fail "hub-fleet-report.yml exists" ".github/workflows/hub-fleet-report.yml missing"
-fi
-
-if [[ -f "$ROOT/bin/scan-consumers.sh" ]]; then
-    _record_pass "vendored scan-consumers.sh exists"
-    if [[ -x "$ROOT/bin/scan-consumers.sh" ]]; then
-        _record_pass "vendored scan-consumers.sh is executable"
-    else
-        _record_fail "vendored scan-consumers.sh is executable" "not executable"
-    fi
-else
-    _record_fail "vendored scan-consumers.sh exists" "bin/scan-consumers.sh missing"
-fi
-
-manifest="$ROOT/ctrlshft-consumers/consumers.manifest.json"
-if [[ -f "$manifest" ]]; then
-    _record_pass "vendored consumers.manifest.json exists"
-    if jq -e '.repos | length > 0' "$manifest" >/dev/null 2>&1; then
-        _record_pass "vendored manifest is valid JSON with repos"
-    else
-        _record_fail "vendored manifest is valid JSON with repos" "invalid JSON or empty repos"
-    fi
-else
-    _record_fail "vendored consumers.manifest.json exists" "ctrlshft-consumers/consumers.manifest.json missing"
+    _record_fail "private consumer inventory and report are absent from the public hub" "found: ${private_fleet_leaks[*]}"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────
