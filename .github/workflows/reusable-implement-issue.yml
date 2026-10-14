@@ -21,6 +21,13 @@ on:
         required: false
         type: number
         default: 60
+    secrets:
+      AGENT_PAT:
+        required: false # callers fall back to GITHUB_TOKEN when absent
+      LITELLM_BASE_URL:
+        required: true
+      LITELLM_MASTER_KEY:
+        required: true
 
 permissions:
   contents: write
