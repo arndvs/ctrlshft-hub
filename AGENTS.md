@@ -37,7 +37,7 @@ This root is the **vendor source** — one-way copy out. See
 - Layout constraint: `engine/` and `templates/` MUST be siblings
   (`resolveDefaultTemplatesDir` walks `../../templates/prompts`).
 - Branch flow: linear commits directly to `main` (no PR for routine engine work).
-- Before merging: `bash test/hub-smoke-coverage.sh` (46/46) + `pnpm test` in `engine/`.
+- Before merging: `bash test/hub-smoke-coverage.sh` (41/41) + `pnpm test` in `engine/`.
 - After a template change: run `bash ~/dotfiles/bin/sync-hub-templates.sh` to
   mirror to the producer, then commit in the producer.
 
